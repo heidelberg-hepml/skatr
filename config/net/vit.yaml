@@ -1,0 +1,15 @@
+arch: ViT
+in_shape: [1, 140, 140, 2350]
+out_channels: 6
+patch_shape: [7, 7, 94]
+condition_dim: 46
+hidden_dim: 1200
+depth: 2
+num_heads: 4
+mlp_ratio: 2.0
+attn_drop: 0.
+proj_drop: 0.
+learn_pos_encoding: False
+# final_conv: False
+# final_conv_channels: None
+long_skips: False

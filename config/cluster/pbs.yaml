@@ -1,0 +1,6 @@
+scheduler: pbs
+queue: a30
+procs: 2
+mem: 48gb
+time: '40:0:0'
+gpus: 1

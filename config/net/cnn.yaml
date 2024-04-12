@@ -1,0 +1,5 @@
+arch: ConvNet3D
+in_channels: 1
+hidden_channels: 32
+out_channels: 6
+sigmoid: False
