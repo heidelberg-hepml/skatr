@@ -1,6 +1,8 @@
 scheduler: pbs
 queue: a30
-procs: 2
-mem: 48gb
+procs: ${num_cpus}
+mem: 90gb
+vmem: 90gb
 time: '40:0:0'
-gpus: 1
+num_gpus: 1
+node: gpu01

@@ -1,39 +1,43 @@
-run_name: dummy
-experiment: DummyExperiment
+run_name: ???
+experiment: RegressionExperiment
 train: True
 evaluate: True
 plot: True
 
+proj_dir: /remote/gpu02/ore/skatr
 dtype: float32
 use_gpu: True
+num_cpus: 2
 device: 0
 submit: False
 dry_run: False
 
 data:
+  # dir: /remote/gpu01a/heneka/21cmlightcones/pure_simulations/x2
+  dir: /scratch2/heneka/21cmlightcones/pure_simulations/
   splits: {train: 0.5, val: 0.2, test: 0.3}
   on_gpu: False
 
 training:
+  preprocessing:
+    AddSingletonChannel: {}
+    Center: {}
   epochs: 1
-  lr: 1.e-4
+  lr: 1.e-3
   batch_size: 500
   use_scheduler: False
   gradient_norm: null
   adam:
     betas: [0.99, 0.999]
     weight_decay: 1.e-3
-
   validate_freq: 1
   save_freq: null
   start_epoch: null
   use_tensorboard: True
   
-preprocessing:
-
 defaults:
   - cluster: pbs
-  - net: cnn
+  - net: cnn_medium
   # - preprocessing
   # - schedule ?
   - hydra

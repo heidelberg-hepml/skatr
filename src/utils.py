@@ -1,9 +1,8 @@
-import os
 import sys
 from subprocess import run
 from textwrap import dedent
 
-def submit_pbs(cfg):
+def submit_pbs(cfg, exp_dir):
     
     args = sys.argv
     
@@ -16,14 +15,16 @@ def submit_pbs(cfg):
         device = cfg.device or r'\`tail -c 2 \$PBS_GPUFILE\`'
         exec_cmd = dedent(f"""
             qsub <<EOT
-            #PBS -d {os.path.dirname(__file__)}
+            #PBS -d {cfg.proj_dir}
             #PBS -N {cfg.run_name}
             #PBS -q {cfg.cluster.queue}
-            #PBS -l nodes=1:ppn={cfg.cluster.procs}:gpus={cfg.cluster.gpus}:{cfg.cluster.queue}
-            #PBS -l mem={cfg.cluster.mem},walltime={cfg.cluster.time}
+            #PBS -l nodes={cfg.cluster.node}:ppn={cfg.cluster.procs}:gpus={cfg.cluster.num_gpus}:{cfg.cluster.queue}
+            #PBS -l mem={cfg.cluster.mem},vmem={cfg.cluster.vmem},walltime={cfg.cluster.time}
+            #PBS -o {exp_dir}/pbs.log
+            #PBS -j oe
             source ~/setup_dl.sh
             export CUDA_VISIBLE_DEVICES={device}
-            {' '.join(args)} submit=False
+            {' '.join(args)} submit=False hydra.run.dir={exp_dir}
             exit 0
             EOT
         """)

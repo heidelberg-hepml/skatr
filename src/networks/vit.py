@@ -29,7 +29,6 @@ class ViT(nn.Module):
         # initialize x,t,c embeddings
         patch_dim = math.prod(cfg.patch_shape) * in_channels
         self.x_embedder = nn.Linear(patch_dim, cfg.hidden_dim)
-        
         self.num_patches = [s // p for s, p in zip(axis_sizes, cfg.patch_shape)]
         
         # initialize fourier frequencies for position embeddings
@@ -102,13 +101,6 @@ class ViT(nn.Module):
 
         return x
 
-    # def from_patches(self, x):
-    #     x = rearrange(
-    #         x, 'b (x y z) (p1 p2 p3 c) -> b c (x p1) (y p2) (z p3)',
-    #         **dict(zip(('x', 'y', 'z', 'p1', 'p2', 'p3'), self.self.num_patches+self.cfg.patch_shape))
-    #     )
-    #     return x
-
     def to_patches(self, x):
         x = rearrange(
             x, 'b c (x p1) (y p2) (z p3) -> b (x y z) (p1 p2 p3 c)',
@@ -146,7 +138,6 @@ class FinalProj(nn.Module):
         self.linear2 = nn.Linear(hidden_dim, out_channels)
         self.norm1 = nn.LayerNorm(hidden_dim, elementwise_affine=False, eps=1e-6)
         self.norm2 = nn.LayerNorm(hidden_dim, elementwise_affine=False, eps=1e-6)
-
 
     def forward(self, x):
         x = self.norm1(x)

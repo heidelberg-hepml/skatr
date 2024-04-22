@@ -18,16 +18,17 @@ class BaseExperiment:
 
     def run(self):
 
-        log.info('Reading data and creating dataloaders')
-        # TODO: Add preprocessing
-        # if cfg.transforms:
-        #     self.transforms = get_transformations(self.cfg.transforms, exp_dir=exp_dir)
-        dataset = self.get_dataset()
-        dataloaders = self.get_dataloaders(dataset)
-        log.info(f'Dataset has signature {dataset.__annotations__}')
+        log.info('Reading data')
+        dataset = self.get_dataset() # TODO: Print the dataset signature/shape
 
+        log.info('Initializing dataloaders')
+        dataloaders = self.get_dataloaders(dataset)
+
+        log.info(f'Using device {self.device}')
         log.info('Initializing model')
-        model = self.get_model().to(device=self.device, memory_format=torch.channels_last_3d)
+        model = self.get_model().to(device=self.device)
+        # TODO: Implement option for memory format in trainer
+
         log.info(
             f'Model ({model.__class__.__name__}[{model.net.__class__.__name__}]) has '
             f'{sum(w.numel() for w in model.parameters())} parameters'
@@ -41,7 +42,7 @@ class BaseExperiment:
 
         if self.cfg.evaluate:
             log.info('Running evaluation')
-            self.evaluate(dataloaders)
+            self.evaluate(dataloaders, model)
 
         if self.cfg.plot:
             log.info('Making plots')
@@ -51,29 +52,22 @@ class BaseExperiment:
 
         assert sum(self.cfg.data.splits.values()) == 1.
         
-        # determine sizes of each dataset split
-        data_size = len(dataset)
-        split_sizes = {
-            'train': int(data_size*self.cfg.data.splits.train),
-            'val'  : int(data_size*self.cfg.data.splits.val),
-            'test' : int(data_size*self.cfg.data.splits.test),
-        }
-        
-        # TODO: Update this to move to separated train/test files
-
-        # split the dataset
-        dataset_splits = dict(zip(split_sizes, random_split(dataset, split_sizes.values())))
-        del dataset
-
-        for k, v in split_sizes.items():
-            if (rem := v % self.cfg.training.batch_size):
-                log.warn(f'\'{k}\' dataloader will drop the last batch (with {rem} data points)')
+        # partition the dataset (using a seed to fix the test split)
+        trn = self.cfg.data.splits.train
+        val = self.cfg.data.splits.val
+        tst = self.cfg.data.splits.test
+        trainval_set, test_set = random_split(
+            dataset, [trn + val, tst], generator=torch.Generator().manual_seed(1729)
+        )
+        train_set, val_set = random_split(trainval_set, [trn/(trn+val), val/(trn+val)])
+        dataset_splits = {'train': train_set, 'val': val_set, 'test': test_set}
+        del dataset, trainval_set # TODO: Assess if this is really necessary
 
         # create dataloaders
         dataloaders = {
             k: DataLoader(
                 d, batch_size=self.cfg.training.batch_size, shuffle=True, drop_last=True,
-                pin_memory=not self.cfg.data.on_gpu
+                num_workers=self.cfg.num_cpus, pin_memory=False # pinning can cause memory issues
             ) for k, d in dataset_splits.items()
         }
 

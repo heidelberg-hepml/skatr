@@ -1,5 +1,6 @@
-arch: ConvNet3D
+arch: CNN
 in_channels: 1
 hidden_channels: 32
 out_channels: 6
-sigmoid: False
+out_act: sigmoid
+checkpoint_grads: False
