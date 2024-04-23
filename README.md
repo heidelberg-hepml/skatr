@@ -4,12 +4,11 @@ A general-purpose transformer for processing lightcones observed by the Square K
 ## Getting started
 
 ## Basic usage
-The script `main.py` is used to run `experiment`s. An experiment consists of training/evaluating a model as well as creating plots. To run the default experiment simply run:
+The script `main.py` is used to run `experiment`s. An experiment consists of training/evaluating a model as well as creating plots. For example, to run the regression experiment simply use:
 ```
-./main.py
+./main.py experiment=regression
 ```
-
-The default experiment is `RegressionExperiment`, which trains a convolutional neural network (`CNN`) to predict cosmological parameters given a lightcone. To run a different experiment, or use a different neural network, simply add command line arguments:
+To run a different experiment, or use a different neural network, simply add command line arguments:
 ```
 ./main.py experiment=<name of an experiment> net=<name of a network architecture>
 ```
