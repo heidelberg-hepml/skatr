@@ -39,6 +39,9 @@ class BaseExperiment:
             trainer = Trainer(model, dataloaders, self.cfg.training, self.exp_dir, self.device)
             log.info('Running training')
             trainer.run_training()
+        else:
+            model.load()
+            model.eval()
 
         if self.cfg.evaluate:
             log.info('Running evaluation')

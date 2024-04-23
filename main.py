@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+
 import hydra
 import logging
 from hydra.core.hydra_config import HydraConfig
@@ -12,7 +13,11 @@ log = logging.getLogger(__name__)
 @hydra.main(config_path='config', config_name='default', version_base=None)
 def main(cfg:DictConfig):
     
-    exp_dir = HydraConfig.get().runtime.output_dir
+    if not cfg.training:
+        exp_dir = cfg.prev_exp_dir
+    else:
+        exp_dir = HydraConfig.get().runtime.output_dir
+    
     if cfg.submit:
         # submit this script to a cluster
         if cfg.cluster.scheduler == 'pbs':
