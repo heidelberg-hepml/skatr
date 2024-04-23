@@ -1,0 +1,8 @@
+experiment: RegressionExperiment
+data:
+  dir: /remote/gpu01a/heneka/21cmlightcones/pure_simulations/x2
+  # dir: /scratch2/heneka/21cmlightcones/pure_simulations/x2
+
+defaults:
+  - default
+  - override net: cnn_medium
