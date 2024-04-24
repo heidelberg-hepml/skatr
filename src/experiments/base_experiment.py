@@ -3,6 +3,7 @@ import torch
 from abc import abstractmethod
 from torch.utils.data import DataLoader, random_split
 
+from .. import transforms
 from ..trainers.trainer import Trainer
 
 log = logging.getLogger('Experiment')
@@ -13,8 +14,11 @@ class BaseExperiment:
         self.cfg = cfg
         self.device = f'cuda:{cfg.device}' if cfg.use_gpu else 'cpu'
         self.exp_dir = exp_dir
-
         torch.set_default_dtype(getattr(torch, cfg.dtype))
+
+        self.preprocessing = [
+            getattr(transforms, name)(**kwargs) for name, kwargs in self.cfg.preprocessing.items()
+        ]
 
     def run(self):
 
@@ -36,7 +40,9 @@ class BaseExperiment:
 
         if self.cfg.train:
             log.info('Initializing trainer')
-            trainer = Trainer(model, dataloaders, self.cfg.training, self.exp_dir, self.device)
+            trainer = Trainer(
+                model, dataloaders, self.preprocessing, self.cfg.training, self.exp_dir, self.device
+            )
             log.info('Running training')
             trainer.run_training()
         else:

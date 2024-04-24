@@ -7,7 +7,7 @@ import torch.nn as nn
 from omegaconf import DictConfig
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
-from typing import Dict
+from typing import Callable, Dict, List
 
 from src.utils import ensure_device
 from .. import transforms
@@ -20,15 +20,17 @@ class Trainer:
             self,
             model:nn.Module,
             dataloaders:Dict[str, DataLoader],
+            preprocessing:List[Callable],
             cfg:DictConfig,
             exp_dir:str,
             device:str
         ):
         """
-        model       -- a pytorch model to be trained
-        dataloaders -- a dictionary containing pytorch data loaders at keys 'train' and 'val'
-        cfg         -- configuration dictionary
-        exp_dir     -- directory to which training outputs will be saved
+        model           -- a pytorch model to be trained
+        dataloaders     -- a dictionary containing pytorch data loaders at keys 'train' and 'val'
+        preprocessing   -- a list of transformations to be applied at each training iteration
+        cfg             -- configuration dictionary
+        exp_dir         -- directory to which training outputs will be saved
         """
 
         self.model = model
@@ -36,9 +38,9 @@ class Trainer:
         self.cfg = cfg
         self.device = device
         self.exp_dir = exp_dir
-        self.transformations = [
-            getattr(transforms, name)(**kwargs) for name, kwargs in self.cfg.preprocessing.items()
-        ]    
+        self.preprocessing = preprocessing
+        
+        self.epoch = 0
 
     def prepare_training(self):
         
@@ -133,7 +135,7 @@ class Trainer:
             x = ensure_device(x, self.device)
 
             # preprocess
-            for transform in self.transformations:
+            for transform in self.preprocessing:
                 x = transform.forward(*x)
 
             # calculate batch loss
@@ -185,7 +187,7 @@ class Trainer:
             x = ensure_device(x, self.device)
             
             # preprocess
-            for transform in self.transformations:
+            for transform in self.preprocessing:
                 x = transform.forward(*x)
 
             loss = self.model.batch_loss(x).detach().cpu().numpy()

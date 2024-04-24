@@ -1,0 +1,7 @@
+pytorch
+numpy
+hydra-core
+einops
+tensorboard
+timm
+matplotlib
