@@ -1,4 +1,4 @@
-arch: MediumCNN
+arch: MiniCNN
 in_channels: 1
 hidden_channels: 32
 out_channels: 6

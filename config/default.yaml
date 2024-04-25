@@ -31,10 +31,6 @@ training:
   save_freq: null
   start_epoch: null
   use_tensorboard: True
-
-preprocessing:
-  AddSingletonChannel: {}
-  Center: {}
   
 defaults:
   - cluster: pbs

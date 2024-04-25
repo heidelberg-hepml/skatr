@@ -10,13 +10,13 @@ from src import utils
 
 log = logging.getLogger(__name__)
 
-@hydra.main(config_path='config', config_name='default', version_base=None)
+@hydra.main(config_path='config', config_name='reg_cnn_mini', version_base=None)
 def main(cfg:DictConfig):
     
-    if not cfg.training:
-        exp_dir = cfg.prev_exp_dir
-    else:
-        exp_dir = HydraConfig.get().runtime.output_dir
+    exp_dir = (
+        HydraConfig.get().runtime.output_dir
+        if cfg.training else cfg.prev_exp_dir
+    )
     
     if cfg.submit:
         # submit this script to a cluster

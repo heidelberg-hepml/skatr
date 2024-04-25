@@ -1,7 +1,7 @@
 arch: ViT
-in_shape: [1, 140, 140, 2350]
+in_shape: [70, 70, 1175]
 out_channels: 6
-patch_shape: [7, 7, 94]
+patch_shape: [7, 7, 47]
 condition_dim: 46
 hidden_dim: 256
 depth: 4

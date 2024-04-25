@@ -51,7 +51,7 @@ class CNN(nn.Module):
             x = self.out_act(x)
         return x
     
-class MediumCNN(nn.Module):
+class MiniCNN(nn.Module):
     
     def __init__(self, cfg:DictConfig):
         super().__init__()
