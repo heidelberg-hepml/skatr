@@ -1,4 +1,4 @@
-run_name: regression_${net}
+run_name: regression_${net.arch}
 experiment: RegressionExperiment
 data:
   dir: /remote/gpu01a/heneka/21cmlightcones/pure_simulations/x2
