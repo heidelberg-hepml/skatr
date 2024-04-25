@@ -22,7 +22,7 @@ def submit_pbs(cfg, exp_dir):
             #PBS -l mem={cfg.cluster.mem},walltime={cfg.cluster.time}
             #PBS -o {exp_dir}/pbs.log
             #PBS -j oe
-            source ~/setup_dl.sh
+            source setup.sh
             export CUDA_VISIBLE_DEVICES={device}
             {' '.join(args)} submit=False hydra.run.dir={exp_dir}
             exit 0
