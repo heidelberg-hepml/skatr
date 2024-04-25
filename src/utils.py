@@ -15,13 +15,13 @@ def submit_pbs(cfg, exp_dir):
         device = cfg.device or r'\`tail -c 2 \$PBS_GPUFILE\`'
         exec_cmd = dedent(f"""
             qsub <<EOT
-            #PBS -d {cfg.proj_dir}
             #PBS -N {cfg.run_name}
             #PBS -q {cfg.cluster.queue}
             #PBS -l nodes={cfg.cluster.node}:ppn={cfg.cluster.procs}:gpus={cfg.cluster.num_gpus}:{cfg.cluster.queue}
             #PBS -l mem={cfg.cluster.mem},walltime={cfg.cluster.time}
             #PBS -o {exp_dir}/pbs.log
             #PBS -j oe
+            cd {cfg.proj_dir}
             source setup.sh
             export CUDA_VISIBLE_DEVICES={device}
             {' '.join(args)} submit=False hydra.run.dir={exp_dir}
