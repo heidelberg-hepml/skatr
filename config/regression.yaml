@@ -1,0 +1,15 @@
+run_name: regression_${net}
+experiment: RegressionExperiment
+data:
+  dir: /remote/gpu01a/heneka/21cmlightcones/pure_simulations
+  # dir: /scratch2/heneka/21cmlightcones/pure_simulations
+  file_by_file: True
+
+preprocessing:
+  AddSingletonChannel: {}
+  Center: {}
+  
+defaults:
+  - default
+  - net: cnn
+  - _self_
