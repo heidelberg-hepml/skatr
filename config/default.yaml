@@ -16,6 +16,7 @@ data:
   dir: /scratch2/heneka/21cmlightcones/pure_simulations/
   splits: {train: 0.5, val: 0.2, test: 0.3}
   on_gpu: False
+  file_by_file: True
 
 training:
   epochs: 1

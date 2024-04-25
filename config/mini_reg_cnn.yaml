@@ -2,7 +2,9 @@ experiment: RegressionExperiment
 data:
   dir: /remote/gpu01a/heneka/21cmlightcones/pure_simulations/x2
   # dir: /scratch2/heneka/21cmlightcones/pure_simulations/x2
+  file_by_file: False
 
 defaults:
   - default
   - net: cnn_medium
+  - _self_

@@ -12,31 +12,39 @@ from ..models import *
 class RegressionExperiment(BaseExperiment):
     
     def get_dataset(self):
-        return LCRegressionDataset(self.cfg.data)
+        if self.cfg.data.file_by_file:
+            return RegressionDatasetByFile(self.cfg.data)
+        else:
+            return RegressionDataset(self.cfg.data)
 
     def get_model(self):
         return Regressor(self.cfg)
     
     def plot(self):
         label_pred_pairs = np.load(os.path.join(self.exp_dir, 'label_pred_pairs.npy'))        
-        with PdfPages('calibration.pdf') as pdf:
+        with PdfPages(os.path.join(self.exp_dir, 'recovery.pdf')) as pdf:
 
             # iterate over individual parameters
             for i in range(label_pred_pairs.shape[1]):
 
                 fig, ax = plt.subplots(figsize=(5,4))
-                pairs = label_pred_pairs[:, i]
-                lo, hi = pairs[:, 0].min(), pairs[:, 0].max() # range of true targets
-                pad = 0.1*(hi-lo)
-                ax.plot([lo-pad]*2, [hi+pad]*2, color='gray', ls='--')
-                ax.scatter(pairs.T, alpha=0.6)
+                labels, preds = label_pred_pairs[:, i].T
+
+                lo, hi = labels.min(), labels.max() # range of true targets
+                NRMSE = np.sqrt(((labels-preds)**2).mean())/(hi-lo)
                 
+                pad = 0.1*(hi-lo)
+                ax.plot([lo-pad, hi+pad], [lo-pad, hi+pad], color='crimson', ls='--', lw=2)
+                ax.scatter(labels, preds, alpha=0.4, color='darkblue')
+                ax.text(0.1, 0.9, f"{NRMSE=:.3f}", transform=ax.transAxes)
+
                 ax.set_xlabel(f'Param {i}')
                 ax.set_ylabel(f'Prediction')
                 fig.tight_layout()
 
                 pdf.savefig(fig)
     
+    @torch.inference_mode()
     def evaluate(self, dataloaders, model):
 
         # disable batchnorm updates, dropout etc.
@@ -44,26 +52,25 @@ class RegressionExperiment(BaseExperiment):
 
         # get truth targets and predictions across the test set
         labels, preds = [], []
-        for X, y in dataloaders['test']:
+        for x, y in dataloaders['test']:
 
             labels.append(y.numpy())
-            with torch.inference_mode():
-                
-                # preprocess input
-                X = X.to(self.device)
-                _ = torch.empty_like(y).to(self.device)
-                for transform in self.preprocessing:
-                    X, _ = transform.forward(X, _)
+            
+            # preprocess input
+            x = x.to(self.device)
+            _ = torch.empty_like(y).to(self.device)
+            for transform in self.preprocessing:
+                x, _ = transform.forward(x, _)
 
-                # predict
-                pred = model.predict(X).detach().cpu()
+            # predict
+            pred = model.predict(x).detach().cpu()
 
-                # postprocess output
-                for transform in reversed(self.preprocessing):
-                    _, pred = transform.reverse(torch.empty_like(X), pred)
-                
-                # append prediction
-                preds.append(pred.numpy())
+            # postprocess output
+            for transform in reversed(self.preprocessing):
+                _, pred = transform.reverse(torch.empty_like(x), pred)
+            
+            # append prediction
+            preds.append(pred.numpy())
 
         # stack results
         labels = np.vstack(labels)
@@ -75,7 +82,7 @@ class RegressionExperiment(BaseExperiment):
         )
 
 
-class LCRegressionDataset(Dataset):
+class RegressionDatasetByFile(Dataset):
 
     def __init__(self, cfg):
         self.cfg = cfg
@@ -91,4 +98,23 @@ class LCRegressionDataset(Dataset):
         y = torch.from_numpy(record['label']).to(torch.get_default_dtype()) # TODO: Cast with numpy before
 
         return X, y
-            
+
+class RegressionDataset(Dataset):
+
+    def __init__(self, cfg):
+        self.cfg = cfg
+        self.files = sorted(glob(f'{cfg.dir}/run*.npz'))
+        self.Xs, self.ys = [], []
+        
+        for f in self.files:
+            record = np.load(f)
+            X = torch.from_numpy(record['image']).to(torch.get_default_dtype()) # TODO: Add option for `channels_last` memory format?
+            y = torch.from_numpy(record['label']).to(torch.get_default_dtype()) # TODO: Cast with numpy before
+            self.Xs.append(X)
+            self.ys.append(y)
+
+    def __len__(self):
+        return len(self.Xs)
+
+    def __getitem__(self, idx):
+        return self.Xs[idx], self.ys[idx]
