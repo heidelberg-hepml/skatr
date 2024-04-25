@@ -19,7 +19,7 @@ def submit_pbs(cfg, exp_dir):
             #PBS -N {cfg.run_name}
             #PBS -q {cfg.cluster.queue}
             #PBS -l nodes={cfg.cluster.node}:ppn={cfg.cluster.procs}:gpus={cfg.cluster.num_gpus}:{cfg.cluster.queue}
-            #PBS -l mem={cfg.cluster.mem},vmem={cfg.cluster.vmem},walltime={cfg.cluster.time}
+            #PBS -l mem={cfg.cluster.mem},walltime={cfg.cluster.time}
             #PBS -o {exp_dir}/pbs.log
             #PBS -j oe
             source ~/setup_dl.sh

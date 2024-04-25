@@ -162,7 +162,7 @@ class Trainer:
             train_losses.append(loss_numpy)
             if self.cfg.use_tensorboard:
                 self.summarizer.add_scalar(
-                    "iter_loss_train", train_losses[-1], itr + self.epoch*self.steps_per_epoch
+                    "iter_loss_train", loss_numpy, itr + self.epoch*self.steps_per_epoch
                 )
         
         # track loss

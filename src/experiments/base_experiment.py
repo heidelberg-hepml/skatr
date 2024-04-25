@@ -97,6 +97,3 @@ class BaseExperiment:
     @abstractmethod
     def evaluate(self, dataloaders):
         pass
-
-        
-
