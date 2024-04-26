@@ -24,7 +24,7 @@ def submit_pbs(cfg, exp_dir):
             cd {cfg.proj_dir}
             source setup.sh
             export CUDA_VISIBLE_DEVICES={device}
-            {' '.join(args)} submit=False hydra.run.dir={exp_dir}
+            python {' '.join(args)} submit=False hydra.run.dir={exp_dir}
             exit 0
             EOT
         """)

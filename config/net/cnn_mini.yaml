@@ -1,6 +1,8 @@
-arch: MiniCNN
+arch: CNN
 in_channels: 1
 hidden_channels: 32
 out_channels: 6
+zstride: 51
+pool_size: [13, 13, 18]
 out_act: sigmoid
 checkpoint_grads: False
