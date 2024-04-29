@@ -10,22 +10,15 @@ from src import utils
 
 log = logging.getLogger(__name__)
 
-@hydra.main(
-    config_path='config',
-    config_name='regression_mini',
-    version_base=None
-)
+@hydra.main(config_path='config', config_name='regression_mini', version_base=None)
 def main(cfg:DictConfig):
     
-    exp_dir = (
-        HydraConfig.get().runtime.output_dir
-        if cfg.training else cfg.prev_exp_dir
-    )
-    
+    hcfg = HydraConfig.get()
+    exp_dir = hcfg.runtime.output_dir if cfg.training else cfg.prev_exp_dir
     if cfg.submit:
         # submit this script to a cluster
         if cfg.cluster.scheduler == 'pbs':
-            exec_cmd = utils.submit_pbs(cfg, exp_dir)
+            exec_cmd = utils.submit_pbs(cfg, hcfg, exp_dir)
             log.info(f'Executing in shell: {exec_cmd}')
     else:
         # select experiment

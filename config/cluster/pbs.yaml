@@ -5,4 +5,4 @@ mem: 128gb
 # vmem: 90gb
 time: '40:0:0'
 num_gpus: 1
-node: gpu01
+node: gpu02
