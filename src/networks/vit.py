@@ -147,4 +147,5 @@ class FinalProj(nn.Module):
         x = torch.mean(x, axis=1)
         x = self.norm2(x)
         x = self.linear2(x)
+        x = self.act(x)
         return x
