@@ -7,7 +7,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 from torch.utils.data import Dataset, TensorDataset
 
 from .base_experiment import BaseExperiment
-from ..models import *
+from ..models import Regressor
 
 class RegressionExperiment(BaseExperiment):
     
