@@ -50,8 +50,8 @@ class ViT(nn.Module):
         # initialize transformer stack
         self.blocks = nn.ModuleList([
             Block(
-                cfg.hidden_dim, cfg.num_heads, mlp_ratio=cfg.mlp_ratio,
-                attn_drop=cfg.attn_drop, proj_drop=cfg.proj_drop,
+                cfg.hidden_dim, cfg.num_heads, mlp_ratio=cfg.mlp_ratio, mlp_drop=cfg.mlp_drop,
+                attn_drop=cfg.attn_drop, proj_drop=cfg.proj_drop
             ) for _ in range(cfg.depth)
         ])
 
@@ -61,7 +61,9 @@ class ViT(nn.Module):
         #     self.final_layer = FinalLayer(cfg.hidden_dim, cfg.patch_shape, final_conv_channels)
         #     self.conv_layer = nn.Conv3d(final_conv_channels, in_channels, kernel_size=3, padding=1)
         # else:
-        self.final_layer = FinalProj(cfg.hidden_dim, cfg.patch_shape, cfg.out_channels, cfg.out_act)
+        self.final_layer = FinalProj(
+            cfg.hidden_dim, cfg.patch_shape, cfg.out_channels, cfg.out_act, cfg.mlp_drop
+        )
 
     def pos_encoding(self): # TODO: Simplify for fixed dim=3
         grids = [getattr(self, f'grid_{i}') for i in range(3)]
@@ -78,7 +80,6 @@ class ViT(nn.Module):
         ]
         return torch.cat(features, dim=1)
 
-
     def forward(self, x):
         """
         Forward pass of ViT.
@@ -87,18 +88,9 @@ class ViT(nn.Module):
         
         x = self.to_patches(x)                       # (B, T, D), where T = prod(num_patches)
         x = self.x_embedder(x) + self.pos_encoding() # (B, T, D)
-
-        N = (len(self.blocks)+1)//2 - 1 # for long skips
-        residuals = []                  # for long skips
-        for i, block in enumerate(self.blocks):
-            x = block(x) # (B, T, D)
-            if self.cfg.long_skips:
-                if i < N:
-                    residuals.append(x)
-                elif i >= len(self.blocks)-N:
-                    x = x + residuals.pop()
-
-        x = self.final_layer(x) # (B, T, prod(patch_shape) * out_channels)
+        for block in self.blocks:
+            x = block(x)                             # (B, T, D)
+        x = self.final_layer(x)                      # (B, T, prod(patch_shape) * out_channels)
 
         return x
 
@@ -108,44 +100,46 @@ class ViT(nn.Module):
             **dict(zip(('p1', 'p2', 'p3'), self.cfg.patch_shape))
         )
         return x
-                 
-def modulate(x, shift, scale):
-    return x * (1 + scale.unsqueeze(1)) + shift.unsqueeze(1)
-
+    
 
 class Block(nn.Module):
-    """
-    A DiT block with adaptive layer norm zero (adaLN-Zero) conditioning.
-    """
-    def __init__(self, hidden_size, num_heads, mlp_ratio=4.0, **block_kwargs):
+    def __init__(self, hidden_size, num_heads, mlp_ratio=4.0, mlp_drop=0., **block_kwargs):
         super().__init__()
         self.norm1 = nn.LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
         self.attn = Attention(hidden_size, num_heads=num_heads, qkv_bias=True, **block_kwargs)
         self.norm2 = nn.LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
         mlp_hidden_dim = int(hidden_size * mlp_ratio)
         approx_gelu = lambda: nn.GELU(approximate="tanh")
-        self.mlp = Mlp(in_features=hidden_size, hidden_features=mlp_hidden_dim, act_layer=approx_gelu, drop=0)
+        self.mlp = Mlp(
+            in_features=hidden_size, hidden_features=mlp_hidden_dim,
+            act_layer=approx_gelu, drop=mlp_drop
+        )
 
     def forward(self, x):
         x = x + self.attn(self.norm1(x))
         x = x + self.mlp(self.norm2(x))
         return x
 
+
 class FinalProj(nn.Module):
-    # TODO: get rid of class and just define layers in ViT.__init__
-    def __init__(self, hidden_dim, patch_shape, out_channels, act=None):
+    def __init__(self, hidden_dim, patch_shape, out_channels, act=None, drop=0.):
         super().__init__()
-        self.linear1 = nn.Linear(hidden_dim, hidden_dim)
-        self.linear2 = nn.Linear(hidden_dim, out_channels)
-        self.norm1 = nn.LayerNorm(hidden_dim, elementwise_affine=False, eps=1e-6)
-        self.norm2 = nn.LayerNorm(hidden_dim, elementwise_affine=False, eps=1e-6)
+        self.proj1 = nn.Sequential(
+            nn.LayerNorm(hidden_dim, elementwise_affine=False, eps=1e-6),
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.Dropout(drop)
+        )
+        self.proj2 = nn.Sequential(
+            nn.LayerNorm(hidden_dim, elementwise_affine=False, eps=1e-6),
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Dropout(drop),
+            nn.Linear(hidden_dim, out_channels)
+        )
         self.act = getattr(F, act) if act else nn.Identity()
 
     def forward(self, x):
-        x = self.norm1(x)
-        x = self.linear1(x) # TODO: Replace with MLP?
+        x = self.proj1(x)
         x = torch.mean(x, axis=1)
-        x = self.norm2(x)
-        x = self.linear2(x)
-        x = self.act(x)
-        return x
+        x = self.proj2(x)
+        return self.act(x)
