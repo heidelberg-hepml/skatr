@@ -81,21 +81,27 @@ class ViT(nn.Module):
     def forward(self, x, mask=False):
         """
         Forward pass of ViT.
-        x: (B, C, *axis_sizes) tensor of spatial inputs
-        x: whether or not to 
+        x   : tensor of spatial inputs with shape (B, C, *axis_sizes)
+        mask: whether or not mask patches (for self supervision).
         """
 
+        # patchify input and embed
         x = self.to_patches(x) # (B, T, D), with T = prod(num_patches)
         x = self.embedding(x)
         if mask:
             self.random_mask_patches(x)
         x = x + self.pos_encoding() # TODO: Check whether masked tokens should really get a position embedding
 
+        # process patches with transformer blocks
         for block in self.blocks:
             x = block(x)
 
+        # aggregate patch features
         x = torch.mean(x, axis=1) # (B, D)
+
+        # apply task head
         x = self.head(x) # (B, Z)
+        
         return self.out_act(x) 
 
     def to_patches(self, x):
@@ -106,11 +112,15 @@ class ViT(nn.Module):
         return x
 
     def random_mask_patches(self, x):
-    
+        """
+        Masks x by randomly selecting patches in each batch and replacing their
+        embedding with `self.mask_token`. The number of patches to mask is 
+        determined by the `self.cfg.mask_frac` option.
+        """
         if not self.cfg.mask_frac:
             print("WARNING: Option `mask_frac` is zero. No masking will be applied.")
             return x
-    
+
         B, T = x.size(0), math.prod(self.num_patches)
         num_masked = int(self.cfg.mask_frac * T)
         full_mask = repeat(self.mask_token, 'd -> b t d', b=B, t=T)
