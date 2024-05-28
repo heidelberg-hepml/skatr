@@ -14,7 +14,7 @@ dry_run: False
 
 data:
   dir: /scratch2/heneka/21cmlightcones/pure_simulations/
-  splits: {train: 0.5, val: 0.2, test: 0.3}
+  splits: {train: 0.7, val: 0.2, test: 0.1}
   on_gpu: False
   file_by_file: True
 

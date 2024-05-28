@@ -13,11 +13,8 @@ class Model(nn.Module):
     def __init__(self, cfg:DictConfig):
         super().__init__()
         self.cfg = cfg
-        try:
-            self.net = getattr(networks, cfg.net.arch)(cfg.net)
-        except AttributeError as e:
-            log.error(f'Network architecture "{cfg.net.arch}" not recognized!')
-            raise e
+        net_cls = getattr(networks, cfg.net.arch)
+        self.net = net_cls(cfg.net)
 
     def load(self):
         path = os.path.join(self.cfg.exp_dir, 'model.pt')
