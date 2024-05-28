@@ -2,18 +2,28 @@ import sys
 from subprocess import run
 from textwrap import dedent
 
+def submit(cfg, hcfg, exp_dir, log):
+    if cfg.cluster.scheduler == 'pbs':
+        exec_cmd = submit_pbs(cfg, hcfg, exp_dir)
+        log.info(f'Executing in shell: {exec_cmd}')
+    else:
+        log.error(f'Unknown cluster scheduler "{cfg.cluster.scheduler}"')
+        sys.exit()
+
 def submit_pbs(cfg, hcfg, exp_dir):
     
+    ccfg = cfg.cluster
     overrides = list(hcfg.overrides.task)
     overrides.remove('submit=True')
     overrides.append(f'hydra.run.dir={exp_dir}')
     device = cfg.device or r'\`tail -c 2 \$PBS_GPUFILE\`'
+
     exec_cmd = dedent(f"""
         qsub <<EOT
         #PBS -N {cfg.run_name}
-        #PBS -q {cfg.cluster.queue}
-        #PBS -l nodes={cfg.cluster.node}:ppn={cfg.cluster.procs}:gpus={cfg.cluster.num_gpus}:{cfg.cluster.queue}
-        #PBS -l mem={cfg.cluster.mem},walltime={cfg.cluster.time}
+        #PBS -q {ccfg.queue}
+        #PBS -l nodes={ccfg.node}:ppn={ccfg.procs}:gpus={ccfg.num_gpus}:{ccfg.queue}
+        #PBS -l mem={ccfg.mem},walltime={ccfg.time}
         #PBS -o {exp_dir}/pbs.log
         #PBS -j oe
         cd {cfg.proj_dir}
