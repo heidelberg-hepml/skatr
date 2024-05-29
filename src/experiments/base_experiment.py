@@ -46,7 +46,8 @@ class BaseExperiment:
             log.info('Running training')
             trainer.run_training()
         else:
-            model.load()
+            log.info(f'Loading model state from {self.cfg.prev_exp_dir}.')
+            model.load(self.exp_dir, self.device)
             model.eval()
 
         if self.cfg.evaluate:

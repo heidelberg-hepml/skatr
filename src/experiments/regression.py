@@ -21,8 +21,18 @@ class RegressionExperiment(BaseExperiment):
         return Regressor(self.cfg)
     
     def plot(self):
-        label_pred_pairs = np.load(os.path.join(self.exp_dir, 'label_pred_pairs.npy'))        
-        with PdfPages(os.path.join(self.exp_dir, 'recovery.pdf')) as pdf:
+        label_pred_pairs = np.load(os.path.join(self.exp_dir, 'label_pred_pairs.npy'))
+        
+        # check for existing plots
+        savename = 'recovery.pdf'
+        savepath = os.path.join(self.exp_dir, savename)
+        if os.path.exists(savepath):
+            old_dir = os.path.join(self.exp_dir, 'old_plots')
+            os.makedirs(old_dir, exist_ok=True)
+            os.rename(savepath, os.path.join(old_dir, savename))
+
+        # create plots
+        with PdfPages(savepath) as pdf:
 
             # iterate over individual parameters
             for i in range(label_pred_pairs.shape[1]):

@@ -14,7 +14,7 @@ log = logging.getLogger(__name__)
 def main(cfg:DictConfig):
     
     hcfg = HydraConfig.get()
-    exp_dir = hcfg.runtime.output_dir if cfg.training else cfg.prev_exp_dir
+    exp_dir = hcfg.runtime.output_dir if cfg.train else cfg.prev_exp_dir
     
     if cfg.submit: # submit this script to a cluster
         submit(cfg, hcfg, exp_dir, log)

@@ -2,4 +2,4 @@ arch: MLP
 units: [5, 100, 1]
 act: relu
 out_act: null
-drop: True
+drop: False

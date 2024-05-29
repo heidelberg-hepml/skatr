@@ -13,13 +13,17 @@ class Model(nn.Module):
     def __init__(self, cfg:DictConfig):
         super().__init__()
         self.cfg = cfg
+
+        # initialize network
         net_cls = getattr(networks, cfg.net.arch)
         self.net = net_cls(cfg.net)
 
-    def load(self):
-        path = os.path.join(self.cfg.exp_dir, 'model.pt')
-        state_dicts = torch.load(path, map_location=self.device)
-        self.net.load_state_dict(state_dicts["net"])
+        # # optionally initialize backbone
+        # if cfg.backbone:
+        #     bb_cls = getattr(networks, cfg.backbone.arch)
+        #     self.bb = bb_cls(cfg.backbone)
 
-    def save(self):
-        raise NotImplementedError
+    def load(self, exp_dir, device):
+        path = os.path.join(exp_dir, 'model.pt')
+        state_dicts = torch.load(path, map_location=device)
+        self.load_state_dict(state_dicts["model"])

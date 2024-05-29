@@ -38,7 +38,7 @@ class SimSiamDatasetByFile(Dataset):
         
         record = np.load(self.files[idx])
         X = torch.from_numpy(record['image']).to(torch.get_default_dtype())
-        return X
+        return X, 
 
 
 class SimSiamDataset(Dataset):
@@ -57,4 +57,4 @@ class SimSiamDataset(Dataset):
         return len(self.Xs)
 
     def __getitem__(self, idx):
-        return self.Xs[idx]
+        return self.Xs[idx], 

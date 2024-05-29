@@ -204,7 +204,7 @@ class Trainer:
         """Save the model along with the training state"""
         state_dicts = {
             'opt': self.optimizer.state_dict(),
-            'net': self.model.net.state_dict(),
+            'model': self.model.state_dict(),
             'losses': self.epoch_train_losses,
             'epoch': self.epoch
         }
@@ -216,7 +216,7 @@ class Trainer:
         """Load the model and training state"""
         name = os.path.join(self.exp_dir, f'model{epoch}.pt')
         state_dicts = torch.load(name, map_location=self.device)
-        self.model.net.load_state_dict(state_dicts['net'])
+        self.model.load_state_dict(state_dicts['net'])
         
         if 'losses' in state_dicts:
             self.epoch_train_losses = state_dicts.get('losses', {})
