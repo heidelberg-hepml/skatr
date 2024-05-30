@@ -1,3 +1,4 @@
+import torch
 import torch.nn.functional as F
 
 from .base_model import Model
@@ -11,7 +12,13 @@ class Regressor(Model):
         return loss
     
     def forward(self, x):
+        if self.cfg.backbone:
+            with torch.no_grad():
+                x = self.bb(x)
         return self.net(x)
 
+    @torch.inference_mode()
     def predict(self, x):
+        if self.cfg.backbone:
+            x = self.bb(x)
         return self.net(x)

@@ -31,7 +31,9 @@ training:
   save_freq: null
   start_epoch: null
   use_tensorboard: True
-  
+
+backbone: null
+
 defaults:
   - cluster: pbs
   # - preprocessing
