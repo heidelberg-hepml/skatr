@@ -42,10 +42,15 @@ class Model(nn.Module):
         # initialize backbone net
         bb_cls = getattr(networks, bcfg.net.arch)
         self.bb = bb_cls(bcfg.net)
+        
         # ... and load its state
         model_state = torch.load(os.path.join(bb_dir, 'model.pt'))["model"]
         net_state = {
             k.replace('net.', ''): v for k,v in model_state.items() if k.startswith('net.')
         }
         self.bb.load_state_dict(net_state)
+        
+        # freeze weights and set to eval mode
+        for p in self.bb.parameters():
+            p.requires_grad = False
         self.bb.eval()

@@ -22,11 +22,11 @@ training:
   epochs: 1
   lr: 1.e-3
   batch_size: 32
-  use_scheduler: False
+  optimizer:
+    name: AdamW
+    kwargs: {betas: [0.99, 0.999], weight_decay: 0.001}
+  scheduler: {}
   gradient_norm: null
-  adam:
-    betas: [0.99, 0.999]
-    weight_decay: 1.e-3
   validate_freq: 1
   save_freq: null
   start_epoch: null

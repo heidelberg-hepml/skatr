@@ -35,7 +35,7 @@ class BaseExperiment:
 
         log.info(
             f'Model ({model.__class__.__name__}[{model.net.__class__.__name__}]) has '
-            f'{sum(w.numel() for w in model.parameters())} parameters'
+            f'{sum(w.numel() for w in model.parameters() if w.requires_grad)} trainable parameters'
         )
 
         if self.cfg.train:

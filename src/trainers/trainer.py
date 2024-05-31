@@ -46,19 +46,17 @@ class Trainer:
         
         log.info('Preparing model training')
 
-        # TODO: Allow for selecting optimizer in config
-        self.optimizer = torch.optim.AdamW(
-            self.model.net.parameters(), lr=self.cfg.lr, betas=self.cfg.adam.betas,
-            weight_decay=self.cfg.adam.weight_decay,
-        )
+        # init optimizer
+        trainable_params = [p for p in self.model.parameters() if p.requires_grad]
+        opt_cls = getattr(torch.optim, self.cfg.optimizer.name)
+        self.optimizer = opt_cls(trainable_params, lr=self.cfg.lr, **self.cfg.optimizer.kwargs)        
 
-        self.steps_per_epoch = len(self.dataloaders['train'])
-        if self.cfg.use_scheduler:
-            raise NotImplementedError
-            self.scheduler = set_scheduler(
-                self.optimizer, self.cfg, steps_per_epoch=self.steps_per_epoch
-            )
+        # init scheduler
+        if self.cfg.scheduler:
+            sdl_cls = getattr(torch.optim.lr_scheduler, self.cfg.scheduler.name)
+            self.scheduler = sdl_cls(self.optimizer, **self.cfg.scheduler.kwargs)
 
+        # set logging of metrics
         if self.cfg.use_tensorboard:
             self.summarizer = SummaryWriter(self.exp_dir)
             log.info(f'Writing tensorboard summaries to dir {self.exp_dir}')
