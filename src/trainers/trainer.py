@@ -39,7 +39,6 @@ class Trainer:
         self.device = device
         self.exp_dir = exp_dir
         self.preprocessing = preprocessing
-        
         self.epoch = 0
 
     def prepare_training(self):
@@ -47,11 +46,13 @@ class Trainer:
         log.info('Preparing model training')
 
         # init optimizer
-        trainable_params = [p for p in self.model.parameters() if p.requires_grad]
         opt_cls = getattr(torch.optim, self.cfg.optimizer.name)
-        self.optimizer = opt_cls(trainable_params, lr=self.cfg.lr, **self.cfg.optimizer.kwargs)        
+        self.optimizer = opt_cls(
+            self.model.trainable_parameters, lr=self.cfg.lr, **self.cfg.optimizer.kwargs
+        )
 
         # init scheduler
+        self.steps_per_epoch = len(self.dataloaders['train'])
         if self.cfg.scheduler:
             sdl_cls = getattr(torch.optim.lr_scheduler, self.cfg.scheduler.name)
             self.scheduler = sdl_cls(self.optimizer, **self.cfg.scheduler.kwargs)
@@ -144,16 +145,11 @@ class Trainer:
                 log.info(f"Unstable loss. Skipping backprop for epoch {self.epoch}")
                 continue
 
-            # propagate gradients
-            loss.backward()
-            # optionally clip gradients
-            if clip := self.cfg.gradient_norm:
-                nn.utils.clip_grad_norm_(self.model.net.parameters(), clip)
-            # update weights
-            self.optimizer.step()
+            # update model parameters
+            self.model.update(self.optimizer, loss)
             
             # update learning rate
-            if self.cfg.use_scheduler:
+            if self.cfg.scheduler:
                 self.scheduler.step()
             
             # track loss
@@ -169,7 +165,7 @@ class Trainer:
         # optionally log to tensorboard
         if self.cfg.use_tensorboard:
             self.summarizer.add_scalar("epoch_loss_train", self.epoch_train_losses[-1], self.epoch)
-            if self.cfg.use_scheduler:
+            if self.cfg.scheduler:
                 self.summarizer.add_scalar(
                     "learning_rate", self.scheduler.get_last_lr()[0],self.epoch
                 )
@@ -206,7 +202,7 @@ class Trainer:
             'losses': self.epoch_train_losses,
             'epoch': self.epoch
         }
-        if self.cfg.use_scheduler:
+        if self.cfg.scheduler:
             state_dicts['scheduler'] = self.scheduler.state_dict()
         torch.save(state_dicts, os.path.join(self.exp_dir, f'model{epoch}.pt'))
 

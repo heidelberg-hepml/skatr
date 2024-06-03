@@ -24,7 +24,7 @@ training:
   batch_size: 32
   optimizer:
     name: AdamW
-    kwargs: {betas: [0.99, 0.999], weight_decay: 0.001}
+    kwargs: {weight_decay: 1.e-3}
   scheduler: {}
   gradient_norm: null
   validate_freq: 1
@@ -36,7 +36,5 @@ backbone: null
 
 defaults:
   - cluster: pbs
-  # - preprocessing
-  # - schedule ?
   - hydra
   - _self_

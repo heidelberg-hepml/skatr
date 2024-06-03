@@ -1,0 +1,48 @@
+run_name: pretraining_micro
+experiment: PretrainingExperiment
+evaluate: False
+plot: False
+
+latent_dim: 128
+predictor_dim: 32
+ema_momentum: 0.9995
+augment: True
+mask: False
+norm_target: False
+norm: False
+
+net:
+  out_channels: ${latent_dim}
+  out_act: null
+  mask_frac: 0.2
+
+data:
+  # not stored in gpu:
+  dir: /remote/gpu01a/heneka/21cmlightcones/pure_simulations/x5
+  file_by_file: False
+
+preprocessing:
+  AddSingletonChannelXOnly: {}
+  CenterXOnly: {}
+
+training:
+  epochs: 20
+  lr: 0.001
+  batch_size: 64
+  optimizer:
+    name: SGD
+    kwargs: {}
+
+predictor:
+  units:
+    - ${latent_dim}
+    - ${predictor_dim}
+    - ${latent_dim}
+  act: relu
+  out_act: null
+  drop: null
+
+defaults:
+  - default
+  - net: vit_micro
+  - _self_

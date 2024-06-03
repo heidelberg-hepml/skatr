@@ -11,5 +11,5 @@ preprocessing:
   
 defaults:
   - default
-  - net: cnn
+  - net: vit
   - _self_

@@ -23,11 +23,23 @@ class Model(nn.Module):
                 f'Backbone ({self.bb.__class__.__name__}]) has '
                 f'{sum(w.numel() for w in self.bb.parameters())} parameters'
             )
-
         # initialize network
         net_cls = getattr(networks, cfg.net.arch)
         # TODO: Automatically set MLP input dim to backbone embedding dim
         self.net = net_cls(cfg.net)
+
+    @property
+    def trainable_parameters(self):
+        return (p for p in self.parameters() if p.requires_grad)
+
+    def update(self, optimizer, loss):
+        # propagate gradients
+        loss.backward()
+        # optionally clip gradients
+        if clip := self.cfg.training.gradient_norm:
+            nn.utils.clip_grad_norm_(self.net.parameters(), clip)
+        # update weights
+        optimizer.step()
 
     def load(self, exp_dir, device):
         path = os.path.join(exp_dir, 'model.pt')
