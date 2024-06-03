@@ -4,17 +4,16 @@ evaluate: False
 plot: False
 
 latent_dim: 128
-predictor_dim: 32
+predictor_dim: 128
 ema_momentum: 0.9995
 augment: True
-mask: False
-norm_target: False
-norm: False
+mask: True
+norm_target: True
 
 net:
   out_channels: ${latent_dim}
   out_act: null
-  mask_frac: 0.2
+  mask_frac: 0.4
 
 data:
   # not stored in gpu:
@@ -26,12 +25,12 @@ preprocessing:
   CenterXOnly: {}
 
 training:
-  epochs: 20
+  epochs: 50
   lr: 0.001
   batch_size: 64
   optimizer:
-    name: SGD
-    kwargs: {}
+    name: AdamW
+    kwargs: {weight_decay: 0.001}
 
 predictor:
   units:
