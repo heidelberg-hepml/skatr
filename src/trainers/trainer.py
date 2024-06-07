@@ -20,7 +20,7 @@ class Trainer:
             self,
             model:nn.Module,
             dataloaders:Dict[str, DataLoader],
-            preprocessing:List[Callable],
+            preprocessing:List[Callable], # TODO: Fix
             cfg:DictConfig,
             exp_dir:str,
             device:str
@@ -125,20 +125,21 @@ class Trainer:
         train_losses = []
         
         # iterate batch wise over input
-        for itr, x in enumerate(self.dataloaders['train']):
+        for itr, batch in enumerate(self.dataloaders['train']):
 
             # clear optimizer gradients
             self.optimizer.zero_grad(set_to_none=True)
 
             # place x on device
-            x = ensure_device(x, self.device)
+            batch = ensure_device(batch, self.device)
 
             # preprocess
-            for transform in self.preprocessing:
-                x = transform.forward(*x)
+            for i, fs in enumerate(self.preprocessing.values()):
+                for f in fs:
+                    batch[i] = f.forward(batch[i])
 
             # calculate batch loss
-            loss = self.model.batch_loss(x)
+            loss = self.model.batch_loss(batch)
             # check for nans / infs in loss
             loss_numpy = loss.detach().cpu().numpy()
             if ~np.isfinite(loss_numpy):
@@ -175,16 +176,17 @@ class Trainer:
         
         # calculate loss batchwise over input
         val_losses = []
-        for x in self.dataloaders['val']:
+        for batch in self.dataloaders['val']:
 
             # place x on device
-            x = ensure_device(x, self.device)
+            batch = ensure_device(batch, self.device)
             
             # preprocess
-            for transform in self.preprocessing:
-                x = transform.forward(*x)
+            for i, fs in enumerate(self.preprocessing.values()):
+                for f in fs:
+                    batch[i] = f.forward(batch[i])
 
-            loss = self.model.batch_loss(x).detach().cpu().numpy()
+            loss = self.model.batch_loss(batch).detach().cpu().numpy()
             val_losses.append(loss)
 
         # track loss

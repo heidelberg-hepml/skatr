@@ -6,6 +6,7 @@ plot: False
 latent_dim: 128
 predictor_dim: 128
 ema_momentum: 0.9995
+sim: l2
 augment: True
 mask: True
 norm_target: True
@@ -19,10 +20,6 @@ data:
   # not stored in gpu:
   dir: /remote/gpu01a/heneka/21cmlightcones/pure_simulations/x5
   file_by_file: False
-
-preprocessing:
-  AddSingletonChannelXOnly: {}
-  CenterXOnly: {}
 
 training:
   epochs: 50
@@ -43,5 +40,6 @@ predictor:
 
 defaults:
   - default
+  - preprocessing: xonly  
   - net: vit_micro
   - _self_

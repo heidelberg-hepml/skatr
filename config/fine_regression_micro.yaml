@@ -1,20 +1,26 @@
 run_name: fine_regression_micro_${net.arch}
 experiment: RegressionExperiment
 
-backbone: runs/siam_micro_sym:True_mask:True_norm:True/2024-05-29_17-56-36
+backbone: runs/pretraining_micro/2024-06-06_22-41-11 # best: ema + adam + norm + l2
+latent_dim: 128
+
+training:
+  epochs: 100
+
 net:
-  units: [128, 256, 256, 6] # input dim must match backbone embedding dim
+  units:
+  - ${latent_dim}
+  - 256
+  - 256
+  - 6
   out_act: sigmoid
 
 data:
   dir: /remote/gpu01a/heneka/21cmlightcones/pure_simulations/x5
   file_by_file: True
-
-preprocessing:
-  AddSingletonChannel: {}
-  Center: {}
   
 defaults:
   - default
+  - preprocessing: xandy
   - net: mlp
   - _self_

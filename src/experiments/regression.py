@@ -15,7 +15,7 @@ class RegressionExperiment(BaseExperiment):
         if self.cfg.data.file_by_file:
             return RegressionDatasetByFile(self.cfg.data)
         else:
-            return RegressionDataset(self.cfg.data)
+            return RegressionDataset(self.cfg.data, self.device)
 
     def get_model(self):
         return Regressor(self.cfg)
@@ -68,16 +68,15 @@ class RegressionExperiment(BaseExperiment):
             
             # preprocess input
             x = x.to(self.device)
-            _ = torch.empty_like(y).to(self.device)
-            for transform in self.preprocessing:
-                x, _ = transform.forward(x, _)
+            for transform in self.preprocessing['x']:
+                x = transform.forward(x)
 
             # predict
             pred = model.predict(x).detach().cpu()
 
             # postprocess output
-            for transform in reversed(self.preprocessing):
-                _, pred = transform.reverse(torch.empty_like(x), pred)
+            for transform in reversed(self.preprocessing['y']):
+                pred = transform.reverse(pred)
             
             # append prediction
             preds.append(pred.numpy())
@@ -111,8 +110,7 @@ class RegressionDatasetByFile(Dataset):
 
 class RegressionDataset(Dataset):
 
-    def __init__(self, cfg):
-        self.cfg = cfg
+    def __init__(self, cfg, device):
         self.files = sorted(glob(f'{cfg.dir}/run*.npz'))
         self.Xs, self.ys = [], []
         
@@ -122,6 +120,9 @@ class RegressionDataset(Dataset):
             y = torch.from_numpy(record['label']).to(torch.get_default_dtype()) # TODO: Cast with numpy before
             self.Xs.append(X)
             self.ys.append(y)
+            if cfg.on_gpu:
+                X = X.to(device)
+                y = y.to(device)
 
     def __len__(self):
         return len(self.Xs)

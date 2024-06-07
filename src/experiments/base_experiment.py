@@ -16,9 +16,10 @@ class BaseExperiment:
         self.exp_dir = exp_dir
         torch.set_default_dtype(getattr(torch, cfg.dtype))
 
-        self.preprocessing = [
-            getattr(transforms, name)(**kwargs) for name, kwargs in self.cfg.preprocessing.items()
-        ]
+        self.preprocessing={ # initialize preprocessing transforms for data and targets
+            k: [getattr(transforms, name)(**kwargs) for name, kwargs in d.items()]
+            for k, d in self.cfg.preprocessing.items()
+        }
 
     def run(self):
 

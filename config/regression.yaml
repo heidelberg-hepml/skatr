@@ -5,11 +5,8 @@ data:
   # dir: /scratch2/heneka/21cmlightcones/pure_simulations
   file_by_file: True
 
-preprocessing:
-  AddSingletonChannel: {}
-  Center: {}
-  
 defaults:
   - default
+  - preprocessing: xandy  
   - net: vit
   - _self_

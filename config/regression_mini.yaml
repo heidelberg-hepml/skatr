@@ -2,16 +2,11 @@ run_name: regression_mini_${net.arch}
 experiment: RegressionExperiment
 
 data:
-  # dir: /remote/gpu01a/heneka/21cmlightcones/pure_simulations/x2
-  # dir: /scratch2/heneka/21cmlightcones/pure_simulations/x2
   dir: /scratch/ore/data/x2
   file_by_file: False
-
-preprocessing:
-  AddSingletonChannel: {}
-  Center: {}
   
 defaults:
   - default
+  - preprocessing: xandy
   - net: vit_mini
   - _self_
