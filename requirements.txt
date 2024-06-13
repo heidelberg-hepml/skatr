@@ -1,5 +1,6 @@
 pytorch
 numpy
+getdist
 hydra-core
 einops
 tensorboard
