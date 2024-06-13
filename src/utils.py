@@ -2,6 +2,10 @@ import sys
 from subprocess import run
 from textwrap import dedent
 
+PARAM_NAMES = [
+    r'$m_{WDM}$', r'$\Omega_m$', r'$E_0$', r'$\log_{10}L_X$', r'$\log_{10}T_{vir}$', r'$\zeta$'
+]
+
 def submit(cfg, hcfg, exp_dir, log):
     if cfg.cluster.scheduler == 'pbs':
         exec_cmd = submit_pbs(cfg, hcfg, exp_dir)

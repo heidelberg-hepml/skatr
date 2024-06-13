@@ -1,13 +1,11 @@
 run_name: inference_micro
 experiment: InferenceExperiment
-plot: False
 
 dim: 6
 time_embed_dim: 32
-summary_dim: 128
 
-num_test_points: 5
-num_posterior_samples: 10000
+num_test_points: 3
+num_posterior_samples: 5000
 sample_batch_size: 1000
 
 net:
@@ -18,15 +16,16 @@ net:
   - 256
   - 256
   - ${dim}
-  out_act: sigmoid
+
+summary_net:
+  out_channels: 128
 
 solver_kwargs:
-  method: rk4
+  method: midpoint
   options:
     step_size: 0.05
 
 data:
-  # not stored in gpu:
   dir: /scratch/ore/data/x5
   file_by_file: False
 
@@ -42,4 +41,5 @@ defaults:
   - default
   - preprocessing: xandy
   - net: mlp
+  - net@summary_net: vit_micro
   - _self_

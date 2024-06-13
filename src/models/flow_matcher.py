@@ -2,7 +2,7 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 from torchdiffeq import odeint
 
 from src import networks
@@ -61,11 +61,10 @@ class ConditionalFlowMatcher(Model):
         with torch.inference_mode():
             sample = odeint(
                 solve_fn, x0, solution_times,
-                method='midpoint', options={'step_size': 0.1} 
-                # **self.cfg.solver_kwargs,
+                **OmegaConf.to_object(self.cfg.solver_kwargs)
             )[-1]
 
-        return sample.detach().cpu().numpy()
+        return sample.detach().cpu()
 
     
 class TimeEmbedding(nn.Module):

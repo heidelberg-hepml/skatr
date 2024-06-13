@@ -6,8 +6,6 @@ from torch.utils.data import DataLoader, random_split
 from src import transforms
 from src.trainers.trainer import Trainer
 
-log = logging.getLogger('Experiment')
-
 class BaseExperiment:
 
     def __init__(self, cfg, exp_dir):
@@ -21,41 +19,43 @@ class BaseExperiment:
             for k, d in self.cfg.preprocessing.items()
         }
 
+        self.log = logging.getLogger('Experiment')
+
     def run(self):
 
-        log.info('Reading data')
+        self.log.info('Reading data')
         dataset = self.get_dataset() # TODO: Print the dataset signature/shape
 
-        log.info('Initializing dataloaders')
+        self.log.info('Initializing dataloaders')
         dataloaders = self.get_dataloaders(dataset)
 
-        log.info(f'Using device {self.device}')
-        log.info('Initializing model')
+        self.log.info(f'Using device {self.device}')
+        self.log.info('Initializing model')
         model = self.get_model().to(device=self.device)
         # TODO: Implement option for memory format in trainer
-        log.info(
+        self.log.info(
             f'Model ({model.__class__.__name__}[{model.net.__class__.__name__}]) has '
             f'{sum(w.numel() for w in model.trainable_parameters)} trainable parameters'
         )
 
         if self.cfg.train:
-            log.info('Initializing trainer')
+            self.log.info('Initializing trainer')
             trainer = Trainer(
                 model, dataloaders, self.preprocessing, self.cfg.training, self.exp_dir, self.device
             )
-            log.info('Running training')
+            self.log.info('Running training')
             trainer.run_training()
         else:
-            log.info(f'Loading model state from {self.cfg.prev_exp_dir}.')
+            self.log.info(f'Loading model state from {self.cfg.prev_exp_dir}.')
             model.load(self.exp_dir, self.device)
             model.eval()
 
         if self.cfg.evaluate:
-            log.info('Running evaluation')
+            self.log.info('Running evaluation')
             self.evaluate(dataloaders, model)
 
         if self.cfg.plot:
-            log.info('Making plots')
+            self.log.info('Making plots')
             self.plot()
     
     def get_dataloaders(self, dataset):

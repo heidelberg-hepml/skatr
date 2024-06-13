@@ -1,13 +1,17 @@
-import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+import matplotlib.lines as mlines
 import numpy as np
 import os
 import torch
+from getdist import plots, MCSamples
 from glob import glob
+from itertools import combinations
 from matplotlib.backends.backend_pdf import PdfPages
-from torch.utils.data import Dataset, DataLoader, IterableDataset
+from torch.utils.data import Dataset
 
 from src.experiments.base_experiment import BaseExperiment
 from src.models import ConditionalFlowMatcher
+from src.utils import PARAM_NAMES
 
 class InferenceExperiment(BaseExperiment):
     
@@ -21,7 +25,59 @@ class InferenceExperiment(BaseExperiment):
         return ConditionalFlowMatcher(self.cfg)
     
     def plot(self):
-        raise NotImplementedError
+        """Adapted from https://github.com/heidelberg-hepml/21cm-cINN/blob/main/Plotting.py"""
+        # load data
+        record = np.load(os.path.join(self.exp_dir, 'param_posterior_pairs.npz'))
+        params, samples = record['params'], record['samples']
+
+        # check for existing plots
+        savename = 'posteriors.pdf'
+        savepath = os.path.join(self.exp_dir, savename)
+        if os.path.exists(savepath):
+            old_dir = os.path.join(self.exp_dir, 'old_plots')
+            self.log.info(f'Moving old plots to {old_dir}')
+            os.makedirs(old_dir, exist_ok=True)
+            os.rename(savepath, os.path.join(old_dir, savename))
+
+        # create plots
+        with PdfPages(savepath) as pdf:
+
+            # iterate test poitns
+            for j in range(len(samples)):
+                samp_mc = MCSamples(
+                    samples=samples[j],
+                    names=PARAM_NAMES,
+                    labels=[l.replace('$', '') for l in PARAM_NAMES]
+                )
+                g = plots.get_subplot_plotter()
+                g.settings.legend_fontsize = 18
+                g.settings.axes_fontsize=18
+                g.settings.axes_labelsize=18
+                g.settings.linewidth=2
+                g.settings.line_labels=False
+                colour=['orchid']
+                g.triangle_plot(
+                    [samp_mc], filled=True, legend_loc='upper right',
+                    colors=colour, contour_colors=colour
+                )
+                # add truth to 1d and 2d marginals
+                for i in range(6):
+                    ax = g.subplots[i,i].axes
+                    ax.axvline(params[j,i], color='k', ls='--',lw=2)
+                for n, m in combinations(range(6), 2):
+                    ax = g.subplots[m,n].axes
+                    ax.scatter(params[j,n],params[j,m],color='k',marker='x',s=100)
+                
+                post_patch = mpatches.Patch(color=colour[0], label='Posterior')
+                true_line = mlines.Line2D(
+                    [], [], color='k', marker='x',ls='--',lw=2, markersize=10, label='True'
+                )
+                g.fig.legend(
+                    handles=[post_patch,true_line], bbox_to_anchor=(0.98, 0.98), fontsize=14
+                )
+                pdf.savefig(g.fig)
+                
+        self.log.info(f'Saved plots to {savepath}')      
     
     @torch.inference_mode()
     def evaluate(self, dataloaders, model):
@@ -42,22 +98,25 @@ class InferenceExperiment(BaseExperiment):
             lcs = transform.forward(lcs)
 
         for i in range(self.cfg.num_test_points):
+            print(f'Sampling posterior for test point {i+1}')
             lc_batch = lcs[i].unsqueeze(0).repeat(self.cfg.sample_batch_size, 1, 1, 1, 1)
-            posterior_samples.append(np.vstack([
+            posterior_samples.append(torch.vstack([
                 model.sample_batch(lc_batch)
                 for _ in range(self.cfg.num_posterior_samples//self.cfg.sample_batch_size)
             ]))
         
         # stack samples and postprocess
-        posterior_samples = np.stack(posterior_samples)
+        posterior_samples = torch.stack(posterior_samples)
         for transform in reversed(self.preprocessing['y']):
             posterior_samples = transform.reverse(posterior_samples)
 
         # save results
+        savepath = os.path.join(self.exp_dir, 'param_posterior_pairs.npz')
+        self.log.info(f'Saving parameter/posterior pairs to {savepath}')
         np.savez(
-            os.path.join(self.exp_dir, 'param_samples_pairs'),
+            savepath,
             params=params[:self.cfg.num_test_points].numpy(),
-            samples=posterior_samples,
+            samples=posterior_samples.numpy()
         )
 
 class InferenceDatasetByFile(Dataset):
@@ -98,11 +157,3 @@ class InferenceDataset(Dataset):
 
     def __getitem__(self, idx):
         return self.Xs[idx], self.ys[idx]
-
-class IterDataset(IterableDataset):
-
-    def __init__(self, generator):
-        self.generator = generator
-
-    def __iter__(self):
-        return self.generator    
