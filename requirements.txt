@@ -4,4 +4,5 @@ hydra-core
 einops
 tensorboard
 timm
+torchdiffeq
 matplotlib

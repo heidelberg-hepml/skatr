@@ -3,8 +3,8 @@ import torch
 from glob import glob
 from torch.utils.data import Dataset
 
-from .base_experiment import BaseExperiment
-from ..models import Pretrainer
+from src.experiments.base_experiment import BaseExperiment
+from src.models import Pretrainer
 
 class PretrainingExperiment(BaseExperiment):
     
@@ -12,7 +12,7 @@ class PretrainingExperiment(BaseExperiment):
         if self.cfg.data.file_by_file:
             return PretrainingDatasetByFile(self.cfg.data)
         else:
-            return PretrainingDataset(self.cfg.data)
+            return PretrainingDataset(self.cfg.data, self.device)
 
     def get_model(self):
         return Pretrainer(self.cfg)
@@ -43,18 +43,19 @@ class PretrainingDatasetByFile(Dataset):
 
 class PretrainingDataset(Dataset):
 
-    def __init__(self, cfg):
-        self.cfg = cfg
+    def __init__(self, cfg, device):
         self.files = sorted(glob(f'{cfg.dir}/run*.npz'))
         self.Xs = []
         
         for f in self.files:
             record = np.load(f)
             X = torch.from_numpy(record['image']).to(torch.get_default_dtype())
+            if cfg.on_gpu:
+                X = X.to(device)
             self.Xs.append(X)
 
     def __len__(self):
         return len(self.Xs)
 
     def __getitem__(self, idx):
-        return self.Xs[idx], 
+        return self.Xs[idx],

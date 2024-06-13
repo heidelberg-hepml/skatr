@@ -1,10 +1,10 @@
-import torch # for rot90 augmentations
+import torch
 import torch.nn as nn
 import random
 from omegaconf import DictConfig
 
-from .base_model import Model
-from .. import networks
+from src import networks
+from src.models.base_model import Model
 
 class Pretrainer(Model):
 
@@ -14,8 +14,12 @@ class Pretrainer(Model):
         self.student = self.net
         self.teacher = self.net.__class__(cfg.net)
 
-        self.sim = nn.CosineSimilarity(dim=1, eps=1e-6)
-        # self.sim = lambda x1, x2: -nn.functional.mse_loss(x1, x2)
+        if cfg.sim=='cosine':
+            self.sim = nn.CosineSimilarity(dim=1, eps=1e-6)
+        elif cfg.sim=='l2':
+            self.sim = lambda x1, x2: -nn.functional.mse_loss(x1, x2)
+        elif cfg.sim=='l1':
+            self.sim = lambda x1, x2: -(x1-x2).abs().mean(1)
         self.norm = nn.BatchNorm1d(cfg.latent_dim)
 
     def batch_loss(self, batch):        
@@ -55,7 +59,7 @@ class Pretrainer(Model):
         return self.student(x, mask=mask)
 
     @torch.inference_mode()
-    def predict(self, x):
+    def embed(self, x):
         return self.student(x)
 
 def augment(x, include_identity=False):

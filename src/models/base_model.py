@@ -5,7 +5,7 @@ import torch.nn as nn
 import logging
 from omegaconf import DictConfig
 
-from .. import networks
+from src import networks
 
 log = logging.getLogger('Model')
 

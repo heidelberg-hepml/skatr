@@ -1,8 +1,8 @@
 import torch
 from torch.utils.data import TensorDataset
 
-from .base_experiment import BaseExperiment
-from ..models import *
+from src.experiments.base_experiment import BaseExperiment
+from src.models import *
 
 class DummyExperiment(BaseExperiment):
     

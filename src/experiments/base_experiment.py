@@ -3,8 +3,8 @@ import torch
 from abc import abstractmethod
 from torch.utils.data import DataLoader, random_split
 
-from .. import transforms
-from ..trainers.trainer import Trainer
+from src import transforms
+from src.trainers.trainer import Trainer
 
 log = logging.getLogger('Experiment')
 
@@ -76,8 +76,11 @@ class BaseExperiment:
         # create dataloaders
         dataloaders = {
             k: DataLoader(
-                d, batch_size=self.cfg.training.batch_size, shuffle=True, drop_last=True,
-                num_workers=self.cfg.num_cpus, pin_memory=False # pinning can cause memory issues
+                d, shuffle=True, drop_last=True, num_workers=self.cfg.num_cpus, pin_memory=False, # pinning can cause memory issues
+                batch_size=(
+                    self.cfg.training.batch_size if k=='train'
+                    else self.cfg.training.test_batch_size
+                )
             ) for k, d in dataset_splits.items()
         }
 

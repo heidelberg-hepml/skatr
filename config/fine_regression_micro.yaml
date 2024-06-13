@@ -16,8 +16,8 @@ net:
   out_act: sigmoid
 
 data:
-  dir: /remote/gpu01a/heneka/21cmlightcones/pure_simulations/x5
-  file_by_file: True
+  dir: /scratch/ore/data/x5
+  file_by_file: False
   
 defaults:
   - default

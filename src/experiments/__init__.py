@@ -1,3 +1,4 @@
 from .dummy import DummyExperiment
-from .regression import RegressionExperiment
+from .inference import InferenceExperiment
 from .pretraining import PretrainingExperiment
+from .regression import RegressionExperiment

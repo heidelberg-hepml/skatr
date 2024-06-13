@@ -1,3 +1,4 @@
 from .classifier import Classifier
-from .regressor import Regressor
+from .flow_matcher import ConditionalFlowMatcher
 from .pretrainer import Pretrainer
+from .regressor import Regressor

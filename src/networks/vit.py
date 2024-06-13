@@ -1,5 +1,3 @@
-"""Modified from github.com/facebookresearch/DiT/blob/main/models.py""" 
-
 import math
 import torch
 import torch.nn as nn

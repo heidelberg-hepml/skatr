@@ -10,7 +10,6 @@ from torch.utils.tensorboard import SummaryWriter
 from typing import Callable, Dict, List
 
 from src.utils import ensure_device
-from .. import transforms
 
 log = logging.getLogger('Trainer')
 
@@ -20,7 +19,7 @@ class Trainer:
             self,
             model:nn.Module,
             dataloaders:Dict[str, DataLoader],
-            preprocessing:List[Callable], # TODO: Fix
+            preprocessing:Dict[str, List[Callable]],
             cfg:DictConfig,
             exp_dir:str,
             device:str
@@ -28,7 +27,8 @@ class Trainer:
         """
         model           -- a pytorch model to be trained
         dataloaders     -- a dictionary containing pytorch data loaders at keys 'train' and 'val'
-        preprocessing   -- a list of transformations to be applied at each training iteration
+        preprocessing   -- A dictinoary containing a list of transformations for each element in
+                           the batch tuple. Processing is applied at each training iteration
         cfg             -- configuration dictionary
         exp_dir         -- directory to which training outputs will be saved
         """

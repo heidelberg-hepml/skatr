@@ -4,10 +4,10 @@ import os
 import torch
 from glob import glob
 from matplotlib.backends.backend_pdf import PdfPages
-from torch.utils.data import Dataset, TensorDataset
+from torch.utils.data import Dataset
 
-from .base_experiment import BaseExperiment
-from ..models import Regressor
+from src.experiments.base_experiment import BaseExperiment
+from src.models import Regressor
 
 class RegressionExperiment(BaseExperiment):
     
@@ -56,7 +56,11 @@ class RegressionExperiment(BaseExperiment):
     
     @torch.inference_mode()
     def evaluate(self, dataloaders, model):
-
+        """
+        Evaluates the regressor on lightcones in the test dataset.
+        Predictions are saved alongside truth labels
+        """
+        
         # disable batchnorm updates, dropout etc.
         model.eval()
 

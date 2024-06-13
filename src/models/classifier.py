@@ -1,6 +1,6 @@
 import torch.nn.functional as F
 
-from .base_model import Model
+from src.models.base_model import Model
 
 class Classifier(Model):
 

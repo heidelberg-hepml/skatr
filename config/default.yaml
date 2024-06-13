@@ -22,6 +22,7 @@ training:
   epochs: 1
   lr: 1.e-3
   batch_size: 32
+  test_batch_size: 200
   optimizer:
     name: AdamW
     kwargs: {weight_decay: 1.e-3}
