@@ -2,28 +2,25 @@ run_name: inference_micro
 experiment: InferenceExperiment
 
 dim: 6
-time_embed_dim: 32
+summary_dim: 128
 
-num_test_points: 3
+num_test_points: 250
 num_posterior_samples: 5000
 sample_batch_size: 1000
 
-net:
-  units:
-  - 166 # must be the sum (dim + t_embed_dim + summary_dim)
-  - 256
-  - 256
-  - 256
-  - 256
-  - ${dim}
+generative_model: INN
+inn:
+  num_blocks: 6
+  layers_per_block: 3
+  internal_size: 256
+  spline_bound: 10
+  num_bins: 10
+  permute_soft: True
+  latent_space: gaussian
+  dropout: 0.
 
 summary_net:
-  out_channels: 128
-
-solver_kwargs:
-  method: midpoint
-  options:
-    step_size: 0.05
+  out_channels: ${summary_dim}
 
 data:
   dir: /scratch/ore/data/x5
@@ -33,6 +30,7 @@ training:
   epochs: 100
   lr: 0.001
   batch_size: 64
+  test_batch_size: ${num_test_points}
   optimizer:
     name: AdamW
     kwargs: {weight_decay: 0.001}

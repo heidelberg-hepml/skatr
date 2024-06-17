@@ -1,3 +1,4 @@
+import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import matplotlib.lines as mlines
 import numpy as np
@@ -10,7 +11,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 from torch.utils.data import Dataset
 
 from src.experiments.base_experiment import BaseExperiment
-from src.models import ConditionalFlowMatcher
+from src.models import ConditionalFlowMatcher, INN
 from src.utils import PARAM_NAMES
 
 class InferenceExperiment(BaseExperiment):
@@ -22,20 +23,25 @@ class InferenceExperiment(BaseExperiment):
             return InferenceDataset(self.cfg.data, self.device)
 
     def get_model(self):
-        return ConditionalFlowMatcher(self.cfg)
+        if self.cfg.generative_model == 'CFM':
+            return ConditionalFlowMatcher(self.cfg)
+        elif self.cfg.generative_model == 'INN':
+            return INN(self.cfg)        
     
     def plot(self):
         """Adapted from https://github.com/heidelberg-hepml/21cm-cINN/blob/main/Plotting.py"""
         # load data
         record = np.load(os.path.join(self.exp_dir, 'param_posterior_pairs.npz'))
-        params, samples = record['params'], record['samples']
+        params  = record['params'] 
+        samples = record['samples']
 
-        # check for existing plots
+        # posterior
+        # check for existing plot
         savename = 'posteriors.pdf'
         savepath = os.path.join(self.exp_dir, savename)
         if os.path.exists(savepath):
             old_dir = os.path.join(self.exp_dir, 'old_plots')
-            self.log.info(f'Moving old plots to {old_dir}')
+            self.log.info(f"Moving old '{savename}' to {old_dir}")
             os.makedirs(old_dir, exist_ok=True)
             os.rename(savepath, os.path.join(old_dir, savename))
 
@@ -43,10 +49,9 @@ class InferenceExperiment(BaseExperiment):
         with PdfPages(savepath) as pdf:
 
             # iterate test poitns
-            for j in range(len(samples)):
+            for j in range(min(len(samples), 8)):
                 samp_mc = MCSamples(
-                    samples=samples[j],
-                    names=PARAM_NAMES,
+                    samples=samples[j], names=PARAM_NAMES,
                     labels=[l.replace('$', '') for l in PARAM_NAMES]
                 )
                 g = plots.get_subplot_plotter()
@@ -76,9 +81,25 @@ class InferenceExperiment(BaseExperiment):
                     handles=[post_patch,true_line], bbox_to_anchor=(0.98, 0.98), fontsize=14
                 )
                 pdf.savefig(g.fig)
-                
-        self.log.info(f'Saved plots to {savepath}')      
-    
+                plt.close()
+
+        self.log.info(f"Saved posterior plots as '{savename}'")
+
+        # calibration
+        savename='calibration.pdf'
+        fs = [
+            (t > p).mean() for t, p in zip(record['param_logprobs'], record['sample_logprobs'])
+        ]
+        bins = np.linspace(0, 1, 20)
+        fig, ax = plt.subplots(figsize=(4,4), dpi=200)
+        ax.plot([0,1], [0,1], ls='--', color='darkgray')
+        ax.plot(bins, np.quantile(fs, bins), color='crimson')
+        ax.set_ylabel(r'Quantile', fontsize=13)
+        ax.set_xlabel('$f$', fontsize=13)
+        fig.tight_layout()
+        fig.savefig(os.path.join(self.exp_dir, savename))
+        self.log.info(f"Saved calibration plot as '{savename}'")
+
     @torch.inference_mode()
     def evaluate(self, dataloaders, model):
         """
@@ -86,37 +107,61 @@ class InferenceExperiment(BaseExperiment):
         number of lightcones from the test set. The samples are saved
         alongside truth parameter values.
         """
-        
+
         # disable batchnorm updates, dropout etc.
         model.eval()
-        posterior_samples = []
-        lcs, params = next(iter(dataloaders['test']))
+        lc_batch, params = next(iter(dataloaders['test']))
+        posterior_samples, posterior_logprobs = [], []
         
-        # preprocess input
-        lcs = lcs.to(self.device)
+        # preprocess lightcones and parameters
+        lc_batch = lc_batch[:self.cfg.num_test_points].to(self.device)
+        processed_params = params[:self.cfg.num_test_points].to(self.device)
         for transform in self.preprocessing['x']:
-            lcs = transform.forward(lcs)
+            lc_batch = transform.forward(lc_batch)
+        for transform in self.preprocessing['y']:
+            processed_params = transform.forward(processed_params)
 
+        # evaluate test param likelihoods
+        param_logprobs = model.log_prob(processed_params, model.sum_net(lc_batch)).cpu()
+
+        # loop over test points
         for i in range(self.cfg.num_test_points):
-            print(f'Sampling posterior for test point {i+1}')
-            lc_batch = lcs[i].unsqueeze(0).repeat(self.cfg.sample_batch_size, 1, 1, 1, 1)
-            posterior_samples.append(torch.vstack([
-                model.sample_batch(lc_batch)
-                for _ in range(self.cfg.num_posterior_samples//self.cfg.sample_batch_size)
-            ]))
-        
-        # stack samples and postprocess
+            self.log.info(f'Sampling posterior for test point {i+1}')
+            
+            # select corresponding lightcone
+            lc = lc_batch[i].unsqueeze(0).repeat(self.cfg.sample_batch_size, 1, 1, 1, 1)
+
+            # sample posterior in batches
+            sample_list, logprob_list = [], []
+            for _ in range(self.cfg.num_posterior_samples//self.cfg.sample_batch_size):
+                sample, logprob = model.sample_batch(lc)
+                sample_list.append(sample.detach().cpu())
+                logprob_list.append(logprob.detach().cpu())
+            
+            # collect samples
+            posterior_samples.append(torch.vstack(sample_list))
+            posterior_logprobs.append(torch.vstack(logprob_list))
+
+            del lc
+
+        # stack all samples
         posterior_samples = torch.stack(posterior_samples)
+        posterior_logprobs = torch.stack(posterior_logprobs)
+        
+        # postprocess posterior samples
         for transform in reversed(self.preprocessing['y']):
             posterior_samples = transform.reverse(posterior_samples)
 
         # save results
-        savepath = os.path.join(self.exp_dir, 'param_posterior_pairs.npz')
-        self.log.info(f'Saving parameter/posterior pairs to {savepath}')
+        savename = 'param_posterior_pairs.npz'
+        savepath = os.path.join(self.exp_dir, savename)
+        self.log.info(f'Saving parameter/posterior pairs as {savename}')
         np.savez(
             savepath,
             params=params[:self.cfg.num_test_points].numpy(),
-            samples=posterior_samples.numpy()
+            param_logprobs=param_logprobs.numpy(),
+            samples=posterior_samples.numpy(),
+            sample_logprobs=posterior_logprobs.numpy()
         )
 
 class InferenceDatasetByFile(Dataset):

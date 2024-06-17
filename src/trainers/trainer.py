@@ -130,7 +130,7 @@ class Trainer:
             # clear optimizer gradients
             self.optimizer.zero_grad(set_to_none=True)
 
-            # place x on device
+            # place batch on device
             batch = ensure_device(batch, self.device)
 
             # preprocess

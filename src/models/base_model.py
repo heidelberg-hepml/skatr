@@ -20,7 +20,7 @@ class Model(nn.Module):
             log.info('Loading pretrained backbone')
             self.load_backbone()
             log.info(
-                f'Backbone ({self.bb.__class__.__name__}]) has '
+                f'Backbone ([{self.bb.__class__.__name__}]) has '
                 f'{sum(w.numel() for w in self.bb.parameters())} parameters'
             )
         # initialize network
