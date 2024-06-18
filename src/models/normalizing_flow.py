@@ -22,27 +22,17 @@ class INN(Model):
         self.sum_net = self.bb if cfg.backbone else ViT(cfg.summary_net)
         self.build_inn()
 
-    def get_constructor_func(self) -> Callable[[int, int], nn.Module]:
-        """
-        Returns a function that constructs a subnetwork with the given parameters
+    def construct_subnet(self, x_in: int, x_out: int) -> nn.Module:
+        subnet = Subnet(
+            self.cfg.inn.layers_per_block, x_in, x_out,
+            internal_size=self.cfg.inn.internal_size, dropout=self.cfg.inn.dropout
+        )
+        return subnet
 
-        Returns:
-            Function that returns a subnet with input and output size as parameters
+    def build_inn(self):
         """
-        def func(x_in: int, x_out: int) -> nn.Module:
-            subnet = Subnet(
-                self.cfg.inn.layers_per_block, x_in, x_out,
-                internal_size=self.cfg.inn.internal_size, dropout=self.cfg.inn.dropout
-            )
-            return subnet
-
-        return func
-
-    def get_coupling_block_kwargs(self) -> tuple[Type, dict]:
+        Construct the INN
         """
-        Returns the keyword arguments for different coupling block types
-        """
-        constructor_fct = self.get_constructor_func()
         permute_soft = self.cfg.inn.permute_soft
         if self.cfg.inn.latent_space == "gaussian":
             upper_bound = self.cfg.inn.spline_bound
@@ -56,7 +46,8 @@ class INN(Model):
                 )
         block_kwargs = {
             "num_bins": self.cfg.inn.num_bins,
-            "subnet_constructor": constructor_fct,
+            # "subnet_constructor": constructor_fct,
+            "subnet_constructor": self.construct_subnet,
             "left": lower_bound,
             "right": upper_bound,
             "bottom": lower_bound,
@@ -64,17 +55,12 @@ class INN(Model):
             "permute_soft": permute_soft
         }
 
-        return block_kwargs
-
-    def build_inn(self):
-        """
-        Construct the INN
-        """
         self.inn = ff.SequenceINN(self.cfg.dim)
         for _ in range(self.cfg.inn.num_blocks):
             self.inn.append(
                 RationalQuadraticSplineBlock, cond=0, cond_shape=(self.cfg.summary_dim,),
-                **self.get_coupling_block_kwargs()
+                # **self.get_coupling_block_kwargs()
+                **block_kwargs
             )
 
     def latent_log_prob(self, z: torch.Tensor) -> Union[torch.Tensor, float]:

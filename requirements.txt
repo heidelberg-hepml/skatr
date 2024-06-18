@@ -1,9 +1,10 @@
-pytorch
-numpy
+einops
+FrEIA
 getdist
 hydra-core
-einops
+matplotlib
+numpy
+pytorch
 tensorboard
 timm
 torchdiffeq
-matplotlib

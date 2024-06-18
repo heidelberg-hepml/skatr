@@ -66,17 +66,23 @@ class BaseExperiment:
         trn = self.cfg.data.splits.train
         val = self.cfg.data.splits.val
         tst = self.cfg.data.splits.test
-        trainval_set, test_set = random_split(
-            dataset, [trn + val, tst], generator=torch.Generator().manual_seed(1729)
-        )
-        train_set, val_set = random_split(trainval_set, [trn/(trn+val), val/(trn+val)])
-        dataset_splits = {'train': train_set, 'val': val_set, 'test': test_set}
-        del dataset, trainval_set # TODO: Assess if this is really necessary
+        dataset_splits = dict(zip(
+            ('train', 'val', 'test'), random_split(
+                dataset, [trn, val, tst], generator=torch.Generator().manual_seed(1729)
+            )
+        ))
+        # trainval_set, test_set = random_split(
+        #     dataset, [trn + val, tst], generator=torch.Generator().manual_seed(1729)
+        # )
+        # train_set, val_set = random_split(trainval_set, [trn/(trn+val), val/(trn+val)])        
+        # dataset_splits = {'train': train_set, 'val': val_set, 'test': test_set}
+        del dataset#, trainval_set # TODO: Assess if this is really necessary
 
         # create dataloaders
         dataloaders = {
             k: DataLoader(
-                d, shuffle=True, drop_last=True, num_workers=self.cfg.num_cpus, pin_memory=False, # pinning can cause memory issues
+                d, shuffle=True, drop_last=True, num_workers=self.cfg.num_cpus,
+                pin_memory=False, # pinning can cause memory issues with large lightcones
                 batch_size=(
                     self.cfg.training.batch_size if k=='train'
                     else self.cfg.training.test_batch_size
