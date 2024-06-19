@@ -11,10 +11,10 @@ sample_batch_size: 1000
 generative_model: INN
 inn:
   num_blocks: 6
-  layers_per_block: 3
-  internal_size: 256
+  layers_per_block: 1
+  internal_size: 128
   spline_bound: 10
-  num_bins: 10
+  num_bins: 6
   permute_soft: True
   latent_space: gaussian
   dropout: 0.
@@ -27,7 +27,7 @@ data:
   file_by_file: False
 
 training:
-  epochs: 100
+  epochs: 200
   lr: 0.001
   batch_size: 64
   test_batch_size: ${num_test_points}
