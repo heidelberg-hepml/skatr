@@ -5,8 +5,9 @@ plot: False
 
 latent_dim: 128
 predictor_dim: 128
-ema_momentum: 0.9995
-sim: l2
+ema_momentum: 0.9997
+momentum_schedule: False
+sim: l1
 augment: True
 mask: True
 norm_target: True
@@ -14,10 +15,9 @@ norm_target: True
 net:
   out_channels: ${latent_dim}
   out_act: null
-  mask_frac: 0.4
+  mask_frac: 0.5
 
 data:
-  # not stored in gpu:
   dir: /remote/gpu01a/heneka/21cmlightcones/pure_simulations/x5
   file_by_file: False
 
