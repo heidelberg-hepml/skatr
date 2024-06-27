@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import random
 from omegaconf import DictConfig
 
@@ -17,9 +18,9 @@ class Pretrainer(Model):
         if cfg.sim=='cosine':
             self.sim = nn.CosineSimilarity(dim=1, eps=1e-6)
         elif cfg.sim=='l2':
-            self.sim = lambda x1, x2: -nn.functional.mse_loss(x1, x2)
+            self.sim = lambda x1, x2: -F.mse_loss(x1, x2)
         elif cfg.sim=='l1':
-            self.sim = lambda x1, x2: -(x1-x2).abs().mean(1)
+            self.sim = lambda x1, x2: -F.l1_loss(x1, x2)
         self.norm = nn.BatchNorm1d(cfg.latent_dim)
 
     def batch_loss(self, batch):        
@@ -45,13 +46,17 @@ class Pretrainer(Model):
         
         return loss.mean()
     
-    def update(self, optimizer, loss):
+    def update(self, optimizer, loss, step=None, total_steps=None):
         
         # student update
         super().update(optimizer, loss)
 
         # teacher update via exponential moving average of student
         tau = self.cfg.ema_momentum
+        if self.cfg.momentum_schedule: # linear increase to tau=1
+            frac = step/total_steps
+            tau = tau + (1-tau)*frac
+
         for ps, pt in zip(self.student.parameters(), self.teacher.parameters()):
             pt = tau*pt + (1-tau)*ps
 

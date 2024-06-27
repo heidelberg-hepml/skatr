@@ -54,8 +54,7 @@ class Trainer:
         # init scheduler
         self.steps_per_epoch = len(self.dataloaders['train'])
         if self.cfg.scheduler:
-            sdl_cls = getattr(torch.optim.lr_scheduler, self.cfg.scheduler.name)
-            self.scheduler = sdl_cls(self.optimizer, **self.cfg.scheduler.kwargs)
+            self.scheduler = self.init_scheduler()
 
         # set logging of metrics
         if self.cfg.use_tensorboard:
@@ -73,11 +72,7 @@ class Trainer:
 
         epochs = self.cfg.epochs
         if start_epoch := self.cfg.start_epoch:
-            self.load(epoch=start_epoch) # TODO: Load model from checkpoint
-            # self.scheduler = set_scheduler(
-            #     self.optimizer, self.params, self.steps_per_epoch,
-            #     last_epoch=start_epoch*self.n_trainbatches
-            # )
+            self.load(epoch=start_epoch) # TODO: Load model from checkpoint. Scheduler working?
             log.info(f'Warm starting training from epoch {start_epoch}')
         
         log.info(f'Beginning training loop with epochs set to {epochs}')
@@ -147,7 +142,9 @@ class Trainer:
                 continue
 
             # update model parameters
-            self.model.update(self.optimizer, loss)
+            step = itr + self.epoch*self.steps_per_epoch
+            total_steps = self.cfg.epochs * self.steps_per_epoch
+            self.model.update(self.optimizer, loss, step, total_steps)
             
             # update learning rate
             if self.cfg.scheduler:
@@ -156,9 +153,7 @@ class Trainer:
             # track loss
             train_losses.append(loss_numpy)
             if self.cfg.use_tensorboard:
-                self.summarizer.add_scalar(
-                    "iter_loss_train", loss_numpy, itr + self.epoch*self.steps_per_epoch
-                )
+                self.summarizer.add_scalar("iter_loss_train", loss_numpy, step)
         
         # track loss
         self.epoch_train_losses = np.append(self.epoch_train_losses, np.mean(train_losses))
@@ -223,3 +218,13 @@ class Trainer:
         if 'scheduler' in state_dicts:
            self.scheduler.load_state_dict(state_dicts['scheduler'])
         self.model.net.to(self.device)
+
+    def init_scheduler(self):
+        name = self.cfg.scheduler.name
+        sdl_cls = getattr(torch.optim.lr_scheduler, name)
+        total_steps = self.cfg.epochs*self.steps_per_epoch
+        match name:
+            case 'OneCycleLR':
+                return sdl_cls(self.optimizer, total_steps=total_steps, **self.cfg.scheduler.kwargs)
+            case _:
+                return sdl_cls(self.optimizer, total_iters=total_steps, **self.cfg.scheduler.kwargs)

@@ -81,7 +81,7 @@ class BaseExperiment:
         # create dataloaders
         dataloaders = {
             k: DataLoader(
-                d, shuffle=True, drop_last=True, num_workers=self.cfg.num_cpus,
+                d, shuffle=k=='train', drop_last=True, num_workers=self.cfg.num_cpus,
                 pin_memory=False, # pinning can cause memory issues with large lightcones
                 batch_size=(
                     self.cfg.training.batch_size if k=='train'

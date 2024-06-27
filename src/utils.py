@@ -48,4 +48,4 @@ def ensure_device(x, device):
     if isinstance(x, list):
         return [ensure_device(e, device) for e in x]
     else:
-        return x.to(device)    
+        return x.to(device)
