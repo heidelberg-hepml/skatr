@@ -23,6 +23,15 @@ class RegressionExperiment(BaseExperiment):
         return Regressor(self.cfg)
     
     def plot(self):
+        
+        # pyplot config
+        plt.rcParams['font.family'] = 'serif'
+        plt.rcParams['text.usetex'] = True
+        plt.rcParams['text.latex.preamble']=(
+            r'\usepackage{amsmath}'
+            r'\usepackage[bitstream-charter]{mathdesign}'
+        )
+
         label_pred_pairs = np.load(os.path.join(self.exp_dir, 'label_pred_pairs.npy'))
         
         # check for existing plots
@@ -55,16 +64,16 @@ class RegressionExperiment(BaseExperiment):
                 # unpack labels/preds and calculate metric
                 labels, preds = label_pred_pairs[:, i].T
                 lo, hi = labels.min(), labels.max() # range of true targets
-                NRMSE = np.sqrt(((labels-preds)**2).mean())/(hi-lo)
+                MARE = (abs(preds-labels)/labels).mean()
                 
                 # fill main axis
                 pad = 0.02*(hi-lo)
                 main_ax.scatter(labels, preds, **dot_kwargs)
                 main_ax.plot([lo-pad, hi+pad], [lo-pad, hi+pad], **ref_kwargs)
-                main_ax.text(0.1, 0.9, f"{NRMSE=:.3f}", transform=ax.transAxes)
+                main_ax.text(0.1, 0.9, f"{MARE=:.1e}", transform=ax.transAxes)
                 
                 # fill ratio axis
-                ratio_ax.scatter(labels, abs(preds - labels) / labels, **dot_kwargs)
+                ratio_ax.scatter(labels, abs(preds - labels)/labels, **dot_kwargs)
                 ratio_ax.semilogy()
 
                 # axis labels
@@ -85,7 +94,7 @@ class RegressionExperiment(BaseExperiment):
                 ax.set_axis_off()
                 main_ax.set_xticklabels([])
 
-                pdf.savefig(fig)
+                pdf.savefig(fig, bbox_inches='tight')
 
         self.log.info(f'Saved plots to {savepath}')
     
