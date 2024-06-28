@@ -10,8 +10,6 @@ momentum_schedule: False
 sim: l1
 augment: True
 norm_target: True
-masking: random
-mask_frac: 0.5
 
 net:
   out_channels: ${latent_dim}
@@ -40,6 +38,7 @@ predictor:
 
 defaults:
   - default
-  - preprocessing: xonly  
+  - masking: random
   - net: vit_micro
+  - preprocessing: xonly  
   - _self_
