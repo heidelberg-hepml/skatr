@@ -27,7 +27,7 @@ class ViT(nn.Module):
         self.embedding = nn.Linear(patch_dim, dim)
 
         # position encoding
-        fourier_dim = dim // 6 # sin/cos features for each dime
+        fourier_dim = dim // 6 # sin/cos features for each dim
         w = torch.arange(fourier_dim) / (fourier_dim - 1)
         w = (1. / (10_000 ** w)).repeat(3)
         self.pos_encoding_freqs = nn.Parameter(

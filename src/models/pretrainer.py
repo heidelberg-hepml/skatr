@@ -70,6 +70,15 @@ class Pretrainer(Model):
     @torch.inference_mode()
     def embed(self, x):
         return self.student(x)
+    
+    def sample_mask(self, batch_size, device):
+        num_patches = self.student.num_patches
+        mask_frac = self.cfg.mask_frac # TODO: replace with fixed range?
+        match self.cfg.masking:
+            case 'random':
+                return masks.random_patch_mask(num_patches, mask_frac, batch_size, device)
+            case '_':
+                return None  
 
 def augment(x, include_identity=False):
     """Applies random rotation + reflection, avoiding double counting"""
@@ -88,12 +97,3 @@ def augment(x, include_identity=False):
         x = x.transpose(2, 3)
     
     return x  
-
-def sample_mask(self, batch_size, device):
-    num_patches = self.student.num_patches
-    mask_frac = self.cfg.mask_frac # TODO: replace with fixed range?
-    match self.cfg.masking:
-        case 'random':
-            return masks.random_patch_mask(num_patches, mask_frac, batch_size, device)
-        case '_':
-            return None    
