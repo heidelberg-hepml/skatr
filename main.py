@@ -6,7 +6,7 @@ from hydra.core.hydra_config import HydraConfig
 from omegaconf import DictConfig
 
 from src import experiments
-from src.utils import submit
+from src.utils.cluster import submit
 
 log = logging.getLogger(__name__)
 

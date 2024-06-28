@@ -3,8 +3,8 @@ import torch
 from abc import abstractmethod
 from torch.utils.data import DataLoader, random_split
 
-from src import transforms
-from src.trainers.trainer import Trainer
+from src.utils import transforms
+from src.utils.trainer import Trainer
 
 class BaseExperiment:
 

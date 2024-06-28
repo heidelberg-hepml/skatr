@@ -9,7 +9,7 @@ from torch.utils.data import Dataset
 
 from src.experiments.base_experiment import BaseExperiment
 from src.models import Regressor
-from src.utils import PARAM_NAMES
+from src.utils.plotting import PARAM_NAMES
 
 class RegressionExperiment(BaseExperiment):
     

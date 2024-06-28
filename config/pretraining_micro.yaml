@@ -9,13 +9,13 @@ ema_momentum: 0.9997
 momentum_schedule: False
 sim: l1
 augment: True
-mask: True
 norm_target: True
+masking: random
+mask_frac: 0.5
 
 net:
   out_channels: ${latent_dim}
   out_act: null
-  mask_frac: 0.5
 
 data:
   dir: /remote/gpu01a/heneka/21cmlightcones/pure_simulations/x5

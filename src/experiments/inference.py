@@ -12,7 +12,7 @@ from torch.utils.data import Dataset
 
 from src.experiments.base_experiment import BaseExperiment
 from src.models import ConditionalFlowMatcher, INN
-from src.utils import PARAM_NAMES
+from src.utils.plotting import PARAM_NAMES
 
 class InferenceExperiment(BaseExperiment):
     
@@ -86,10 +86,21 @@ class InferenceExperiment(BaseExperiment):
         self.log.info(f"Saved posterior plots as '{savename}'")
 
         # calibration
-        savename='calibration.pdf'
+        param_logprobs = record['param_logprobs']
+        sample_logprobs = record['sample_logprobs']
+        
         fs = [
-            (t > p).mean() for t, p in zip(record['param_logprobs'], record['sample_logprobs'])
+            (t > p).mean() for t, p in zip(param_logprobs, sample_logprobs)
         ]
+
+        # TARP calibration
+        # mins, maxs = params.min(0), params.max(0)
+        # ref_params = torch.rand_like(params) * (maxs-mins) + mins
+        # tarps = [
+        #     ((t-r).abs() > (p-r).abs()).mean() for r, t, p in zip(ref_params, params, samples)
+        # ]
+
+        savename='calibration.pdf'
         bins = np.linspace(0, 1, 20)
         fig, ax = plt.subplots(figsize=(4,4), dpi=200)
         ax.plot([0,1], [0,1], ls='--', color='darkgray')

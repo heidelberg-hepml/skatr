@@ -6,6 +6,7 @@ from omegaconf import DictConfig
 
 from src import networks
 from src.models.base_model import Model
+from src.utils import masks
 
 class Pretrainer(Model):
 
@@ -25,12 +26,15 @@ class Pretrainer(Model):
 
     def batch_loss(self, batch):        
 
-        # augment / mask batch
+        # augment batch
         x1 = augment(batch[0], include_identity=True)
         x2 = augment(x1) if self.cfg.augment else x1
 
+        # sample mask
+        mask = self.sample_mask(x1.size(0), x1.device)
+            
         # embed masked batch
-        embedding = self.student(x1, mask=self.cfg.mask)
+        embedding = self.student(x1, mask=mask)
 
         # embed full batch without grads
         with torch.no_grad():
@@ -60,7 +64,7 @@ class Pretrainer(Model):
         for ps, pt in zip(self.student.parameters(), self.teacher.parameters()):
             pt = tau*pt + (1-tau)*ps
 
-    def forward(self, x, mask=False):
+    def forward(self, x, mask=None):
         return self.student(x, mask=mask)
 
     @torch.inference_mode()
@@ -84,3 +88,12 @@ def augment(x, include_identity=False):
         x = x.transpose(2, 3)
     
     return x  
+
+def sample_mask(self, batch_size, device):
+    num_patches = self.student.num_patches
+    mask_frac = self.cfg.mask_frac # TODO: replace with fixed range?
+    match self.cfg.masking:
+        case 'random':
+            return masks.random_patch_mask(num_patches, mask_frac, batch_size, device)
+        case '_':
+            return None    
