@@ -27,6 +27,8 @@ training:
     name: AdamW
     kwargs: {weight_decay: 1.e-3}
   scheduler: {}
+  augmentations:
+    RotateAndReflect: {include_identity: True}
   gradient_norm: null
   validate_freq: 1
   save_freq: null

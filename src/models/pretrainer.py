@@ -1,12 +1,11 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import random
 from omegaconf import DictConfig
 
 from src import networks
 from src.models.base_model import Model
-from src.utils import masks
+from src.utils import augmentations, masks
 
 class Pretrainer(Model):
 
@@ -15,6 +14,8 @@ class Pretrainer(Model):
         self.predictor = networks.MLP(cfg.predictor)
         self.student = self.net
         self.teacher = self.net.__class__(cfg.net)
+        self.norm = nn.BatchNorm1d(cfg.latent_dim)
+        self.augment = augmentations.RotateAndReflect()
 
         if cfg.sim=='cosine':
             self.sim = nn.CosineSimilarity(dim=1, eps=1e-6)
@@ -22,13 +23,12 @@ class Pretrainer(Model):
             self.sim = lambda x1, x2: -F.mse_loss(x1, x2)
         elif cfg.sim=='l1':
             self.sim = lambda x1, x2: -F.l1_loss(x1, x2)
-        self.norm = nn.BatchNorm1d(cfg.latent_dim)
 
     def batch_loss(self, batch):        
 
         # augment batch
-        x1 = augment(batch[0], include_identity=True) if self.cfg.augment else batch[0]
-        x2 = augment(x1) if self.cfg.augment else x1
+        x1 = batch[0]
+        x2 = self.augment(x1) if self.cfg.augment else x1
 
         # sample mask
         mask = self.sample_mask(x1.size(0), x1.device)
@@ -78,21 +78,3 @@ class Pretrainer(Model):
             match cfg.name:
                 case 'random':
                     return masks.random_patch_mask(num_patches, cfg, batch_size, device)
-
-def augment(x, include_identity=False):
-    """Applies random rotation + reflection, avoiding double counting"""
-    
-    # construct options
-    idcs = [(0, 1), (0, 2), (0, 3), (1, 0), (1, 1), (1, 2), (1, 3)]
-    if include_identity:
-        idcs.append((0,0))
-
-    # select from options
-    ref_idx, rot_idx = random.choice(idcs)
-
-    # apply transformations
-    x = torch.rot90(x, rot_idx, dims=[2,3])
-    if ref_idx:
-        x = x.transpose(2, 3)
-    
-    return x  

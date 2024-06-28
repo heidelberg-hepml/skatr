@@ -9,6 +9,8 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from typing import Callable, Dict, List
 
+from src.utils import augmentations
+
 log = logging.getLogger('Trainer')
 
 class Trainer:
@@ -53,6 +55,14 @@ class Trainer:
         self.steps_per_epoch = len(self.dataloaders['train'])
         if self.cfg.scheduler:
             self.scheduler = self.init_scheduler()
+
+        # init augmentations
+        self.augmentations = [
+            getattr(augmentations, name)(**kwargs)
+            for name, kwargs in self.cfg.augmentations.items()
+        ]
+        if augs := self.augmentations:
+            log.info(f"Loaded augmentations: {', '.join([a.__class__.__name__ for a in augs])}")
 
         # set logging of metrics
         if self.cfg.use_tensorboard:
@@ -130,6 +140,10 @@ class Trainer:
             for i, fs in enumerate(self.preprocessing.values()):
                 for f in fs:
                     batch[i] = f.forward(batch[i])
+
+            # augment
+            for augment in self.augmentations:
+                batch[0] = augment(batch[0])
 
             # calculate batch loss
             loss = self.model.batch_loss(batch)
