@@ -127,7 +127,7 @@ class RegressionExperiment(BaseExperiment):
         labels, preds = [], []
         for x, y in dataloaders['test']:
 
-            labels.append(y.numpy())
+            labels.append(y.cpu().numpy())
             
             # preprocess input
             x = x.to(self.device)
@@ -181,11 +181,11 @@ class RegressionDataset(Dataset):
             record = np.load(f)
             X = torch.from_numpy(record['image']).to(torch.get_default_dtype()) # TODO: Add option for `channels_last` memory format?
             y = torch.from_numpy(record['label']).to(torch.get_default_dtype()) # TODO: Cast with numpy before
-            self.Xs.append(X)
-            self.ys.append(y)
             if cfg.on_gpu:
                 X = X.to(device)
                 y = y.to(device)
+            self.Xs.append(X)
+            self.ys.append(y)
 
     def __len__(self):
         return len(self.Xs)
