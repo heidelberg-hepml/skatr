@@ -77,4 +77,8 @@ class Pretrainer(Model):
             num_patches = self.student.num_patches
             match cfg.name:
                 case 'random':
-                    return masks.random_patch_mask(num_patches, cfg, batch_size, device)
+                    return masks.patch_mask(num_patches, cfg, batch_size, device)
+                case 'block':
+                    return masks.block_mask(num_patches, cfg, batch_size, device)[0]
+                case 'multi-block':
+                    return masks.context_target_mask(num_patches, cfg, batch_size, device)
