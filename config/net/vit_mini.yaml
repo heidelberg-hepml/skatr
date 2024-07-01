@@ -13,4 +13,6 @@ proj_drop: 0.
 mlp_drop: 0.
 learn_pos_encoding: True
 out_act: sigmoid
+use_head: False
+use_mask_token: True
 checkpoint_grads: False

@@ -3,7 +3,6 @@ experiment: PretrainingExperiment
 evaluate: False
 plot: False
 
-latent_dim: 128
 predictor_dim: 128
 ema_momentum: 0.9997
 momentum_schedule: False
@@ -11,9 +10,17 @@ sim: l1
 augment: True
 norm_target: True
 
-net:
-  out_channels: ${latent_dim}
-  out_act: null
+net: # encoders
+  use_head: False
+
+predictor:
+  use_head: False
+  hidden_dim: 48
+  depth: 4
+  learn_pos_encoding: False
+  in_dim: ${net.hidden_dim}
+  in_shape: ${net.in_shape}
+  patch_shape: ${net.patch_shape}
 
 data:
   dir: /remote/gpu01a/heneka/21cmlightcones/pure_simulations/x5
@@ -27,18 +34,10 @@ training:
     name: AdamW
     kwargs: {weight_decay: 0.001}
 
-predictor:
-  units:
-    - ${latent_dim}
-    - ${predictor_dim}
-    - ${latent_dim}
-  act: relu
-  out_act: null
-  drop: null
-
 defaults:
   - default
   - masking: random
   - net: vit_micro
+  - predictor: vit_micro
   - preprocessing: xonly  
   - _self_

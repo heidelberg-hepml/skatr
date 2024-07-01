@@ -6,6 +6,8 @@ from einops import rearrange, repeat
 from timm.models.vision_transformer import Attention, Mlp
 from torch.utils.checkpoint import checkpoint
 
+from src.utils import masks
+
 class ViT(nn.Module):
     """
     A vision transformer network.
@@ -46,18 +48,22 @@ class ViT(nn.Module):
             ) for _ in range(cfg.depth)
         ])
 
+        # norm layer
+        self.out_norm = nn.LayerNorm(dim, eps=1e-6)
+
         # output head
-        self.head = nn.Sequential(
-            nn.LayerNorm(dim, elementwise_affine=False, eps=1e-6),
-            nn.Linear(dim, dim),
-            nn.ReLU(),
-            nn.Dropout(cfg.mlp_drop),
-            nn.Linear(dim, cfg.out_channels)
-        )
-        self.out_act = getattr(F, cfg.out_act) if cfg.out_act else nn.Identity()
+        if cfg.use_head:
+            self.head = nn.Sequential(
+                nn.Linear(dim, dim),
+                nn.ReLU(),
+                nn.Dropout(cfg.mlp_drop),
+                nn.Linear(dim, cfg.out_channels)
+            )
+            self.out_act = getattr(F, cfg.out_act) if cfg.out_act else nn.Identity()
 
         # masking
-        self.mask_token = nn.Parameter(torch.randn(dim)) # TODO: initialize only when used
+        if self.cfg.use_mask_token:
+            self.mask_token = nn.Parameter(torch.randn(dim))
 
     def pos_encoding(self): # TODO: Simplify for fixed dim=3
         grids = [getattr(self, f'grid_{i}') for i in range(3)]
@@ -77,32 +83,37 @@ class ViT(nn.Module):
     def forward(self, x, mask=None):
         """
         Forward pass of ViT.
-        x   : tensor of spatial inputs with shape (B, C, *axis_sizes)
-        mask: a tensor of patch indices that should be masked out of `x`.
+        :param x   : tensor of spatial inputs with shape (B, C, *axis_sizes)
+        :param mask: a tensor of patch indices that should be masked out of `x`.
         """
 
         # patchify input and embed
         x = self.to_patches(x) # (B, T, D), with T = prod(num_patches)
         x = self.embedding(x)
 
-        # optionally apply mask
-        if mask is not None:
-            x = self.apply_mask(x, mask)
-
-        # add position encoding
-        x = x + self.pos_encoding()
-
+        # apply mask and position encoding
+        if self.cfg.use_mask_token:
+            if mask is not None:
+                x = self.apply_mask_tokens(x, mask)
+            x = x + self.pos_encoding()
+        else:
+            x = x + self.pos_encoding()
+            if mask is not None:
+                x = masks.gather_tokens(x, mask)
+        
         # process patches with transformer blocks
         for block in self.blocks:
             x = block(x)
+        x = self.out_norm(x)
 
-        # aggregate patch features
-        x = torch.mean(x, axis=1) # (B, D)
+        if self.cfg.use_head:
+            # aggregate patch features
+            x = torch.mean(x, axis=1) # (B, D)
 
-        # apply task head
-        x = self.head(x) # (B, Z)
-        
-        return self.out_act(x) 
+            # apply task head
+            x = self.out_act(self.head(x)) # (B, Z)
+
+        return x
 
     def to_patches(self, x):
         x = rearrange(
@@ -111,16 +122,17 @@ class ViT(nn.Module):
         )
         return x
 
-    def apply_mask(self, x, mask):
+    def apply_mask_tokens(self, x, mask_idcs):
         """
-        :param x: input tensor with shape (B, T, D)
-        :param mask: tensor with shape (B, T) containing indices in the range [0,T)
-        key: (B [batch size], T [number of patches], D [embed dim])
-
         Replaces patch embeddings in `x` with the network's mask token at indices speficied by `mask`.
+
+        :param x   : input tensor with shape (B [batch size], T [number of patches], D [embed dim])
+        :param mask: tensor with shape (B, T) containing indices in the range [0,T)
         """
         B, T = x.shape[:2]
         full_mask_token = repeat(self.mask_token, 'd -> b t d', b=B, t=T)
+        # construct boolean mask
+        mask = torch.zeros((B, T), device=x.device).scatter_(-1, mask_idcs, 1).bool()
         return torch.where(mask[..., None], full_mask_token, x)    
 
 class Block(nn.Module):
@@ -147,7 +159,52 @@ class Block(nn.Module):
             x = x + self.attn(self.norm1(x))
         x = x + self.mlp(self.norm2(x))
         return x
-    
+
+class PredictorViT(ViT):
+
+    def __init__(self, cfg):
+
+        super().__init__(cfg)
+
+        # override embedding layer # TODO: better way?
+        self.embedding = nn.Linear(cfg.in_dim, cfg.hidden_dim)
+        self.out_proj = nn.Linear(cfg.hidden_dim, cfg.in_dim)
+
+
+    def forward(self, ctx, ctx_mask, tgt_mask):
+        """
+        :param ctx: tokens from context block
+        :param ctx_mask: mask corresponding to context block (for pos encoding)
+        :param tgt_mask: mask corresponding to target block (for pos encoding)
+        """
+        
+        B, N_ctx, D = ctx.shape # batch size, num context patches, context dim
+        T = math.prod(self.num_patches) # total patches (before masking)
+        
+        pos_encoding = self.pos_encoding()
+
+        # embed context tokens to own hidden dim
+        ctx = self.embedding(ctx)
+        ctx = ctx + masks.gather_tokens(pos_encoding, ctx_mask) # TODO: Correct? or different pos encoding needed?
+
+        # prepare target prediction tokens
+        tgt = repeat(self.mask_token, 'd -> b t d', b=B, t=T) # repeat to full shape
+        tgt = tgt + pos_encoding # add position encodings
+        tgt = masks.gather_tokens(tgt, tgt_mask) # only keep tokens in target block
+
+        # concatenate
+        prd = torch.cat([ctx, tgt], dim=1)
+        
+        # process patches with transformer blocks
+        for block in self.blocks:
+            prd = block(prd)
+        x = self.out_norm(x)
+
+        prd = prd[:, N_ctx:] # select output tokens in target block
+        prd = self.out_proj(prd) # project back to full dimensions
+
+        return prd
+
 def check_shapes(cfg):
     for i, (s, p) in enumerate(zip(cfg.in_shape[1:], cfg.patch_shape)):
         assert not s % p, \
