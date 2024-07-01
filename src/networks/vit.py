@@ -114,12 +114,12 @@ class ViT(nn.Module):
     def apply_mask(self, x, mask):
         """
         :param x: input tensor with shape (B, T, D)
-        :param mask: boolean tensor with shape (B, T) indicating patches to be dropped from `x`
+        :param mask: tensor with shape (B, T) containing indices in the range [0,T)
         key: (B [batch size], T [number of patches], D [embed dim])
 
-        Replaces patch embeddings in `x` with the network's mask token where `mask` is true.
+        Replaces patch embeddings in `x` with the network's mask token at indices speficied by `mask`.
         """
-        B, T = mask.shape
+        B, T = x.shape[:2]
         full_mask_token = repeat(self.mask_token, 'd -> b t d', b=B, t=T)
         return torch.where(mask[..., None], full_mask_token, x)    
 
