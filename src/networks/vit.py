@@ -111,7 +111,7 @@ class ViT(nn.Module):
         )
         return x
 
-    def apply_mask(self, x, mask):
+    def apply_mask(self, x, mask_idcs):
         """
         :param x: input tensor with shape (B, T, D)
         :param mask: boolean tensor with shape (B, T) indicating patches to be dropped from `x`
@@ -119,9 +119,11 @@ class ViT(nn.Module):
 
         Replaces patch embeddings in `x` with the network's mask token where `mask` is true.
         """
-        B, T = mask.shape
+        B, T = x.shape[:2]
         full_mask_token = repeat(self.mask_token, 'd -> b t d', b=B, t=T)
-        return torch.where(mask[..., None], full_mask_token, x)    
+        # construct boolean mask
+        mask = torch.zeros((B, T), device=x.device).scatter_(-1, mask_idcs, 1).bool()
+        return torch.where(mask[..., None], full_mask_token, x)     
 
 class Block(nn.Module):
     def __init__(
