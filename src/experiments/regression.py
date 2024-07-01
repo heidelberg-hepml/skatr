@@ -44,8 +44,8 @@ class RegressionExperiment(BaseExperiment):
             os.rename(savepath, os.path.join(old_dir, savename))
 
         # marker settings
-        ref_kwargs = {'color': 'crimson', 'ls': '--', 'lw': 2, 'alpha': 0.8}
-        dot_kwargs = {'alpha': 0.6, 'color': 'navy', 's': 15}
+        ref_kwargs = {'color': '#171717', 'ls': '-', 'lw': 0.5, 'alpha': 0.8}
+        err_kwargs = {'fmt': 'o', 'color': 'navy', 'ecolor': 'royalblue', 'ms': 2, 'elinewidth': 1}
 
         # create plots
         with PdfPages(savepath) as pdf:
@@ -54,26 +54,41 @@ class RegressionExperiment(BaseExperiment):
             for i in range(label_pred_pairs.shape[1]):
 
                 # make figure with ratio axis
-                fig, ax = plt.subplots(figsize=(5,5))
-                main_cell, ratio_cell = gridspec.GridSpecFromSubplotSpec(
-                    2, 1, subplot_spec=ax, height_ratios=[5,1.5], hspace=0.05
-                )
-                main_ax = plt.subplot(main_cell)
-                ratio_ax = plt.subplot(ratio_cell)
+                fig = plt.figure(figsize=(3.3,3.5), constrained_layout=True)
+                grid = gridspec.GridSpec(2,1, figure=fig, height_ratios=[5,1.5], hspace=0.05)
+                main_ax = plt.subplot(grid[0])
+                ratio_ax = plt.subplot(grid[1])    
 
                 # unpack labels/preds and calculate metric
                 labels, preds = label_pred_pairs[:, i].T
-                lo, hi = labels.min(), labels.max() # range of true targets
-                MARE = (abs(preds-labels)/labels).mean()
+
+                # digitize data
+                num_bins = 40
+                lo, hi = labels.min(), labels.max() # truth label ranges
+                bins = np.linspace(lo, hi, num_bins+1)
+                bin_width = (bins[1]-bins[0])/2
+                bin_centers = (bins[1:]+bins[:-1])/2
+                bin_idcs = np.digitize(labels, bins)                
+                partitions = [preds[bin_idcs==i+1] for i in range(num_bins)]
+                mares = abs(preds - labels) / labels
+                mare_partitions = [mares[bin_idcs==i+1] for i in range(num_bins)]
+                MARE = mares.mean()
                 
                 # fill main axis
-                pad = 0.02*(hi-lo)
-                main_ax.scatter(labels, preds, **dot_kwargs)
+                pad = 0.04*(hi-lo)
                 main_ax.plot([lo-pad, hi+pad], [lo-pad, hi+pad], **ref_kwargs)
-                main_ax.text(0.1, 0.9, f"{MARE=:.1e}", transform=ax.transAxes)
-                
+                main_ax.errorbar(
+                    bin_centers, list(map(np.mean, partitions)),
+                    yerr=list(map(np.std, partitions)), **err_kwargs
+                )
+                main_ax.text(0.1, 0.9, f"{MARE=:.1e}", transform=main_ax.transAxes)
+
                 # fill ratio axis
-                ratio_ax.scatter(labels, abs(preds - labels)/labels, **dot_kwargs)
+                ratio_ax.errorbar(
+                    bin_centers, list(map(np.mean, mare_partitions)),
+                    yerr=list(map(np.std, mare_partitions)), **err_kwargs
+                )
+                ratio_ax.axhline(y=MARE, color='navy', ls='--', lw=1)
                 ratio_ax.semilogy()
 
                 # axis labels
@@ -88,11 +103,11 @@ class RegressionExperiment(BaseExperiment):
                 main_ax.set_xlim([lo-pad, hi+pad])
                 main_ax.set_ylim([lo-pad, hi+pad])
                 ratio_ax.set_xlim(*main_ax.get_xlim())
-                ratio_ax.set_ylim(1e-3, 1)
+                # ratio_ax.set_ylim(1e-3, 1)
 
                 # clean
-                ax.set_axis_off()
                 main_ax.set_xticklabels([])
+                fig.tight_layout()
 
                 pdf.savefig(fig, bbox_inches='tight')
 
