@@ -82,8 +82,8 @@ class BaseExperiment:
         # create dataloaders
         dataloaders = {
             k: DataLoader(
-                d, shuffle=k=='train', drop_last=True, num_workers=self.cfg.num_cpus,
-                pin_memory=False, # pinning can cause memory issues with large lightcones
+                d, shuffle=k=='train', drop_last=True, pin_memory=False, # pinning can cause memory issues with large lightcones
+                num_workers=0 if self.cfg.data.on_gpu else self.cfg.num_cpus, # parallel loading from GPU causes CUDA error
                 batch_size=(
                     self.cfg.training.batch_size if k=='train'
                     else self.cfg.training.test_batch_size
