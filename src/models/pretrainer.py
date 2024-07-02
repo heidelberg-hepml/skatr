@@ -76,7 +76,7 @@ class Pretrainer(Model):
         if cfg := self.cfg.masking:
             num_patches = self.student.num_patches
             match cfg.name:
-                case 'random':
+                case 'patch':
                     return masks.patch_mask(num_patches, cfg, batch_size, device)
                 case 'block':
                     return masks.block_mask(num_patches, cfg, batch_size, device)[0]
