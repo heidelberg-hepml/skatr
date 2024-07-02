@@ -14,8 +14,9 @@ class JEPA(Model):
         self.predictor = networks.PredictorViT(cfg.predictor)
         self.ctx_encoder = self.net
         self.tgt_encoder = self.net.__class__(cfg.net)
-        self.norm = nn.BatchNorm1d(cfg.latent_dim)  # TODO: Remove norm?
         self.augment = augmentations.RotateAndReflect()
+        if cfg.norm_target:
+            self.norm = nn.BatchNorm1d(cfg.hidden_dim)  # TODO: Remove norm?
 
         match cfg.sim:
             case 'l2':
@@ -32,27 +33,32 @@ class JEPA(Model):
         x2 = self.augment(x1) if self.cfg.augment else x1
 
         # sample masks
-        ctx_mask, tgt_masks = masks.sample_jepa_masks(x2.size(0), x2.device) # TODO: Update parameter
+        num_patches = self.ctx_encoder.num_patches
+        tgt_masks, ctx_masks = masks.multiblock_mask(
+            num_patches, self.cfg.masking, batch_size=x2.size(0), device=x2.device
+        )
             
-        
-        # embed masked batch
-        ctx_tokens = masks.gather_tokens(x2, ctx_mask)
-        ctx_tokens = self.ctx_encoder(ctx_tokens)
-
         loss = 0.
-        for tgt_mask in tgt_masks:
-            # predict tokens
+        # WARNING: Assumes each target mask has it's own context. Repeat ctx_mask otherwise
+        for ctx_mask, tgt_mask in zip(ctx_masks, tgt_masks):
+            
+            # get context token embeddings and predict
+            ctx_tokens = self.ctx_encoder(x2, mask=ctx_mask)
             prd_tokens = self.predictor(ctx_tokens, ctx_mask, tgt_mask)
+
+            # get target token embeddings
             with torch.no_grad():
                 # embed full batch without grads
                 tgt_tokens = self.tgt_encoder(x1)
+                # keep only tokens in target block
+                tgt_tokens = masks.gather_tokens(tgt_tokens, tgt_mask) 
                 # if self.cfg.norm_target: # TODO: is norm any help?
                 #     target = self.norm(target)
 
             # similarity loss
             loss += -self.sim(prd_tokens, tgt_tokens)
         
-        return loss.mean() # TODO: Take the mean more carefully, in case each mask is different size
+        return loss
     
     
     def update(self, optimizer, loss, step=None, total_steps=None):

@@ -7,10 +7,11 @@ predictor_dim: 128
 ema_momentum: 0.9997
 momentum_schedule: False
 sim: l1
-augment: True
-norm_target: True
+augment: False
+norm_target: False
 
 net: # encoders
+  use_mask_token: False
   use_head: False
 
 predictor:
@@ -36,8 +37,8 @@ training:
 
 defaults:
   - default
-  - masking: random
+  - masking: multiblock
   - net: vit_micro
-  - predictor: vit_micro
+  - net@predictor: vit_micro
   - preprocessing: xonly  
   - _self_
