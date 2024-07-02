@@ -11,6 +11,7 @@ mlp_ratio: 2.0
 attn_drop: 0.
 proj_drop: 0.
 mlp_drop: 0.
+use_mask_token: True
 learn_pos_encoding: True
 out_act: sigmoid
 use_head: False

@@ -127,10 +127,12 @@ def block_size(num_patches, cfg, mode='context'):
         dims[i] = round(dim * max_dims[i])
     
     return dims
+
+
 def gather_tokens(x, mask):
     """
     :param x: tensor of shape [B (batch-size), N (num-patches), D (feature-dim)]
     :param mask: tensor of shape [B, K] containing indices of K patches in [N] to keep
     """
     mask_keep = mask.unsqueeze(-1).repeat(1, 1, x.size(-1))
-    return torch.gather(x, dim=1, index=mask_keep)    
+    return torch.gather(x, dim=1, index=mask_keep)
