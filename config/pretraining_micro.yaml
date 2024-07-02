@@ -13,6 +13,8 @@ norm_target: False
 net: # encoders
   use_mask_token: False
   use_head: False
+  hidden_dim: 144
+  depth: 4
 
 predictor:
   use_head: False
@@ -24,7 +26,7 @@ predictor:
   patch_shape: ${net.patch_shape}
 
 data:
-  dir: /remote/gpu01a/heneka/21cmlightcones/pure_simulations/x5
+  dir: /scratch/ore/data/x5
   file_by_file: False
 
 training:
