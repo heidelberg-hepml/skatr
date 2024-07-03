@@ -28,6 +28,12 @@ class INN(Model):
             internal_size=self.cfg.inn.internal_size, dropout=self.cfg.inn.dropout
         )
         return subnet
+    
+    def summarize(self, c):
+        c = self.sum_net(c)
+        if not hasattr(self.sum_net, 'head'):
+            c = c.mean(1) # (B, T, D) -> (B, D)
+        return c
 
     def build_inn(self):
         """
@@ -108,7 +114,7 @@ class INN(Model):
         )
         z = latent_sampler((c.shape[0], self.cfg.dim), dtype=c.dtype, device=c.device)    
         
-        c = self.sum_net(c)
+        c = self.summarize(c)
         x, jac = self.inn(z, (c,), rev=True)
         log_prob = self.latent_log_prob(z) - jac
         return x.detach().cpu(), log_prob.detach().cpu()
@@ -145,7 +151,7 @@ class INN(Model):
             loss: batch loss
         """
         c, x = batch
-        c = self.sum_net(c)
+        c = self.summarize(c)
         return -self.log_prob(x, c).mean() / self.cfg.dim
 
 
