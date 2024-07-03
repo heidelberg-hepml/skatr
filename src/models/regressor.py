@@ -15,6 +15,9 @@ class Regressor(Model):
         if self.cfg.backbone:
             with torch.no_grad():
                 x = self.bb(x)
+                if not hasattr(self.bb, 'head'):
+                    x = x.mean(1) # (B, T, D) --> (B, D)
+
         return self.net(x)
 
     @torch.inference_mode()
