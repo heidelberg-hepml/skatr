@@ -36,7 +36,7 @@ training:
 
 defaults:
   - default
-  - masking: random
+  - masking: multiblock
   - net: vit_micro
   - predictor: vit_micro
   - preprocessing: xonly  

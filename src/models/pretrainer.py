@@ -80,5 +80,5 @@ class Pretrainer(Model):
                     return masks.patch_mask(num_patches, cfg, batch_size, device)
                 case 'block':
                     return masks.block_mask(num_patches, cfg, batch_size, device)[0]
-                case 'multi-block':
+                case 'multiblock':
                     return masks.context_target_mask(num_patches, cfg, batch_size, device)
