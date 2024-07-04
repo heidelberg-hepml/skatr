@@ -34,7 +34,7 @@ class JEPA(Model):
 
         # sample masks
         num_patches = self.ctx_encoder.num_patches
-        tgt_masks, ctx_masks = masks.multiblock_mask(
+        tgt_masks, ctx_masks = masks.JEPA_mask(
             num_patches, self.cfg.masking, batch_size=x2.size(0), device=x2.device
         )
             

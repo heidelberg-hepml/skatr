@@ -26,7 +26,8 @@ predictor:
   patch_shape: ${net.patch_shape}
 
 data:
-  dir: /scratch/ore/data/x5
+  dir: /scratch/nordmann/data_new/x5
+  #dir: /scratch/ore/data/x5
   file_by_file: False
 
 training:

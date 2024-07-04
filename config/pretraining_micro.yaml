@@ -38,7 +38,7 @@ predictor:
 
 defaults:
   - default
-  - masking: patch
+  - masking: block
   - net: vit_micro
   - preprocessing: xonly  
   - _self_

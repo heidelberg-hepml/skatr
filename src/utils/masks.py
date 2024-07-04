@@ -16,7 +16,23 @@ def patch_mask(num_patches, cfg, batch_size, device):
     mask_idcs = torch.rand(batch_size, T, device=device).topk(k=num_masked, dim=-1).indices
     return mask_idcs
 
-def multiblock_mask(num_patches, cfg, batch_size, device):
+def collated_block_mask(num_patches, cfg, batch_size, device):
+    # sample block size (once per batch)
+    block_sizes = [sample_block_size(num_patches, cfg) for i in range(cfg.num_targets)]
+
+    for _ in range(batch_size):
+        masks = []
+        for i, block_size in enumerate(block_sizes):
+
+            mask, = block_mask(num_patches, cfg, block_size, device)
+            for _ in range(num_blocks - 1):
+                mask, = block_mask(num_patches, cfg, block_size, device)
+                torch.cat([mask, mask_i], dim=0)
+            masks.append(mask)
+        batch.append(masks)
+    return torch.utils.data.default_collate(batch)
+
+def JEPA_mask(num_patches, cfg, batch_size, device):
     """
     :cfg.num_targets: Number of targets to predict
 
@@ -42,9 +58,9 @@ def multiblock_mask(num_patches, cfg, batch_size, device):
                 mode = 'long'
                 num_blocks = cfg.long_num_blocks
 
-            target_mask, context_mask = block_mask(num_patches, cfg, block_size, mode, device)
+            target_mask, context_mask = block_mask(num_patches, cfg, block_size, device)
             for _ in range(num_blocks - 1):
-                target_mask_i, context_mask_i = block_mask(num_patches, cfg, block_size, mode, device)
+                target_mask_i, context_mask_i = block_mask(num_patches, cfg, block_size, device)
                 torch.cat([target_mask, target_mask_i], dim=0)
                 torch.cat([context_mask, context_mask_i], dim=0)
             target_masks.append(target_mask)
@@ -52,7 +68,7 @@ def multiblock_mask(num_patches, cfg, batch_size, device):
         batch.append((target_masks, context_masks))
     return torch.utils.data.default_collate(batch)
 
-def block_mask(num_patches, cfg, block_size, mode, device):
+def block_mask(num_patches, cfg, block_size, device):
     """
     :param num_patches: iterable containing the number of patches per dimension
 
@@ -86,7 +102,7 @@ def block_mask(num_patches, cfg, block_size, mode, device):
                 timeout = og_timeout
     return mask, com_mask
 
-def sample_block_size(num_patches, cfg, mode='context'):
+def sample_block_size(num_patches, cfg, mode='default'):
     """
     spatial_frac: range that spatial fraction is sampled from
     redshift_frac: range that redshift fraction is sampled from
@@ -98,6 +114,9 @@ def sample_block_size(num_patches, cfg, mode='context'):
     max_dims = num_patches
     spatial_aspect_range = cfg.spatial_aspect
     match mode:
+        case 'default':
+            spatial_frac_range = cfg.spatial_frac
+            redshift_frac_range = cfg.redshift_frac
         case 'short':
             spatial_frac_range = cfg.short_spatial_frac
             redshift_frac_range = cfg.short_redshift_frac
