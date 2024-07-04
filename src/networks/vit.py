@@ -181,7 +181,7 @@ class PredictorViT(ViT):
         B, N_ctx, D = ctx.shape # batch size, num context patches, context dim
         T = math.prod(self.num_patches) # total patches (before masking)
         
-        pos_encoding = self.pos_encoding()
+        pos_encoding = repeat(self.pos_encoding(), 't d -> b t d', b=B)
 
         # embed context tokens to own hidden dim
         ctx = self.embedding(ctx)
@@ -198,7 +198,7 @@ class PredictorViT(ViT):
         # process patches with transformer blocks
         for block in self.blocks:
             prd = block(prd)
-        x = self.out_norm(x)
+        prd = self.out_norm(prd)
 
         prd = prd[:, N_ctx:] # select output tokens in target block
         prd = self.out_proj(prd) # project back to full dimensions

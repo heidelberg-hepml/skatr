@@ -10,8 +10,7 @@ training:
 net:
   units:
   - ${latent_dim}
-  - 256
-  - 256
+  - ${latent_dim}
   - 6
   out_act: sigmoid
 

@@ -3,8 +3,8 @@ import torch
 from glob import glob
 from torch.utils.data import Dataset
 
+from src import models
 from src.experiments.base_experiment import BaseExperiment
-from src.models import JEPA
 
 class PretrainingExperiment(BaseExperiment):
     
@@ -15,7 +15,8 @@ class PretrainingExperiment(BaseExperiment):
             return PretrainingDataset(self.cfg.data, self.device)
 
     def get_model(self):
-        return JEPA(self.cfg)
+        model_cls = getattr(models, self.cfg.model)
+        return model_cls(self.cfg)
     
     def plot(self):
         raise NotImplementedError
