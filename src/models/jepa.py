@@ -15,8 +15,8 @@ class JEPA(Model):
         self.ctx_encoder = self.net
         self.tgt_encoder = self.net.__class__(cfg.net)
         self.augment = augmentations.RotateAndReflect()
-        if cfg.norm_target:
-            self.norm = nn.BatchNorm1d(cfg.hidden_dim)  # TODO: Remove norm?
+        # if cfg.norm_target:
+        #     self.norm = nn.BatchNorm1d(self.net.hidden_dim)  # TODO: Remove norm?
 
         match cfg.sim:
             case 'l2':
@@ -38,25 +38,25 @@ class JEPA(Model):
             num_patches, self.cfg.masking, batch_size=x2.size(0), device=x2.device
         )
             
+        # get target token embeddings
+        with torch.no_grad():
+            tgt_tokens = self.tgt_encoder(x1)
+        
         loss = 0.
-        # WARNING: Assumes each target mask has it's own context. Repeat ctx_mask otherwise
         for ctx_mask, tgt_mask in zip(ctx_masks, tgt_masks):
-            
+            # WARNING: Assumes each target mask has it's own context. Repeat ctx_mask otherwise
+        
             # get context token embeddings and predict
             ctx_tokens = self.ctx_encoder(x2, mask=ctx_mask)
             prd_tokens = self.predictor(ctx_tokens, ctx_mask, tgt_mask)
 
-            # get target token embeddings
-            with torch.no_grad():
-                # embed full batch without grads
-                tgt_tokens = self.tgt_encoder(x1)
-                # keep only tokens in target block
-                tgt_tokens = masks.gather_tokens(tgt_tokens, tgt_mask) 
-                # if self.cfg.norm_target: # TODO: is norm any help?
-                #     target = self.norm(target)
+            # keep only target tokens in current block
+            local_tgt_tokens = masks.gather_tokens(tgt_tokens, tgt_mask) 
+            # if self.cfg.norm_target: # TODO: is norm any help?
+            #     tgt_tokens_iter = self.norm(tgt_tokens_iter)
 
             # similarity loss
-            loss += -self.sim(prd_tokens, tgt_tokens)
+            loss += -self.sim(prd_tokens, local_tgt_tokens)
         
         return loss
     
