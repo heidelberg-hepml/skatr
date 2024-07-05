@@ -16,7 +16,10 @@ net:
   out_act: null
 
 data:
-  dir: /scratch/ore/data/x5
+# old data on gpu02
+  #dir: /scratch/ore/data/x5
+# new data on h100
+  dir: /scratch/nordmann/data_new/x5
   file_by_file: False
 
 training:
