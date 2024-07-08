@@ -73,6 +73,7 @@ class Trainer:
 
         self.epoch_train_losses = np.array([])
         self.epoch_val_losses = np.array([])
+        self.best_val_loss = np.inf
 
     def run_training(self):
 
@@ -98,6 +99,12 @@ class Trainer:
             if (self.epoch + 1) % self.cfg.validate_freq == 0:
                 self.model.eval()
                 self.validate_one_epoch()
+                
+                # save model if val_loss improved
+                if self.cfg.save_best_epoch:
+                    if (val_loss := self.epoch_val_losses[-1]) < self.best_val_loss:
+                        self.best_val_loss = val_loss
+                        self.save()
 
             # optionally save model at given frequency
             if save_freq := self.cfg.save_freq:
@@ -118,9 +125,10 @@ class Trainer:
         )
         
         # save final model
-        log.info('Saving final model')
-        self.model.eval()
-        self.save()
+        if not self.cfg.save_best_epoch:
+            log.info('Saving final model')
+            self.model.eval()
+            self.save()
 
     def train_one_epoch(self):
         
@@ -203,7 +211,7 @@ class Trainer:
         if self.cfg.use_tensorboard:
             self.summarizer.add_scalar("epoch_loss_val", self.epoch_val_losses[-1], self.epoch)
 
-    def save(self, epoch=''):
+    def save(self, tag=''):
         """Save the model along with the training state"""
         state_dicts = {
             'opt': self.optimizer.state_dict(),
@@ -213,7 +221,7 @@ class Trainer:
         }
         if self.cfg.scheduler:
             state_dicts['scheduler'] = self.scheduler.state_dict()
-        torch.save(state_dicts, os.path.join(self.exp_dir, f'model{epoch}.pt'))
+        torch.save(state_dicts, os.path.join(self.exp_dir, f'model{tag}.pt'))
 
     def load(self, epoch=''):
         """Load the model and training state"""
