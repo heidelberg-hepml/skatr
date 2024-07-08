@@ -31,6 +31,7 @@ training:
     RotateAndReflect: {include_identity: True}
   gradient_norm: null
   validate_freq: 1
+  save_best_epoch: False
   save_freq: null
   start_epoch: null
   use_tensorboard: True
