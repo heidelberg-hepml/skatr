@@ -94,6 +94,7 @@ class INN(Model):
             log probabilities, shape (n_events, ) if not bayesian
                                shape (1+self.bayesian_samples, n_events) if bayesian
         """
+        c = self.summarize(c)
         z, jac = self.inn(x, (c,)) # TODO: summarize c first
         return self.latent_log_prob(z) + jac
 
