@@ -95,7 +95,7 @@ class INN(Model):
                                shape (1+self.bayesian_samples, n_events) if bayesian
         """
         c = self.summarize(c)
-        z, jac = self.inn(x, (c,)) # TODO: summarize c first
+        z, jac = self.inn(x, (c,))
         return self.latent_log_prob(z) + jac
 
     @torch.inference_mode()
@@ -152,7 +152,6 @@ class INN(Model):
             loss: batch loss
         """
         c, x = batch
-        c = self.summarize(c)
         return -self.log_prob(x, c).mean() / self.cfg.dim
 
 
