@@ -1,0 +1,12 @@
+run_name: regression_micro_${net.arch}
+experiment: RegressionExperiment
+
+data:
+  dir: /scratch/ore/data/x5
+  file_by_file: False
+  
+defaults:
+  - default
+  - preprocessing: xandy
+  - net: vit_micro
+  - _self_

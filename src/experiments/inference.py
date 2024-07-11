@@ -133,7 +133,7 @@ class InferenceExperiment(BaseExperiment):
             processed_params = transform.forward(processed_params)
 
         # evaluate test param likelihoods
-        param_logprobs = model.log_prob(processed_params, model.sum_net(lc_batch)).cpu()
+        param_logprobs = model.log_prob(processed_params, lc_batch).cpu()
 
         # loop over test points
         for i in range(self.cfg.num_test_points):

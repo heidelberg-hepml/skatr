@@ -14,10 +14,12 @@ def submit(cfg, hcfg, exp_dir, log):
 def submit_pbs(cfg, hcfg, exp_dir):
     
     ccfg = cfg.cluster
+    out_dir = hcfg.runtime.output_dir
+    device = cfg.device or r'\`tail -c 2 \$PBS_GPUFILE\`'
+    
     overrides = list(hcfg.overrides.task)
     overrides.remove('submit=True')
-    overrides.append(f'hydra.run.dir={exp_dir}')
-    device = cfg.device or r'\`tail -c 2 \$PBS_GPUFILE\`'
+    overrides.append(f'hydra.run.dir={out_dir}')
 
     exec_cmd = dedent(f"""
         qsub <<EOT
@@ -25,7 +27,7 @@ def submit_pbs(cfg, hcfg, exp_dir):
         #PBS -q {ccfg.queue}
         #PBS -l nodes={ccfg.node}:ppn={ccfg.procs}:gpus={ccfg.num_gpus}:{ccfg.queue}
         #PBS -l mem={ccfg.mem},walltime={ccfg.time}
-        #PBS -o {exp_dir}/pbs.log
+        #PBS -o {out_dir}/pbs.log
         #PBS -j oe
         cd {cfg.proj_dir}
         source setup.sh
