@@ -32,8 +32,8 @@ One often needs to re-run a previous experiment. This can be achieved simply fro
 
 - Continuing training from a saved checkpoint:
 ```
-python3 main.py prev_exp_dir=</path/to/prev/exp> warm_start=True -cn <default_config> 
-python3 main.py prev_exp_dir=</path/to/prev/exp> warm_start=True warm_start_epoch=30 -cn <default_config>
+python3 main.py prev_exp_dir=</path/to/prev/exp> training.warm_start=True -cn <default_config> 
+python3 main.py prev_exp_dir=</path/to/prev/exp> training.warm_start=True training.warm_start_epoch=30 -cn <default_config>
 ```
 - Repeating evaluation and/or plotting from using a saved model:
 ```
