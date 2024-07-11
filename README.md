@@ -3,7 +3,7 @@ A general-purpose summary transformer for processing lightcones observed by the 
 
 ## Getting started
 - Clone the repository
-- Create a virtual (conda) environment and install packages `requirements.txt`
+- Create a virtual (conda) environment and install packages listed in `requirements.txt`
 
 
 ## Basic usage
