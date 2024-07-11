@@ -39,6 +39,7 @@ python3 main.py prev_exp_dir=</path/to/prev/exp> warm_start=True warm_start_epoc
 ```
 python3 main.py prev_exp_dir=</path/to/prev/exp> train=False evaluate=False -cn <default_config>
 ```
+The specific configuration will be loaded from the previous experiment. Command line overrides are also applied.
 
 ## Further usage
 This project uses [Hydra](https://hydra.cc/docs/intro/) to configure experiments. The default settings are given in `config/default.yaml` and each can be overridden via the command line. For example, to use a different learning rate and to load the entire dataset into memory:
