@@ -30,12 +30,12 @@ The following is a description of currently-implemented experiments:
 ## Continuing an experiment
 One often needs to re-run a previous experiment. This can be achieved simply from the command line. Common examples include:
 
-- Continuing training a model from a checkpoint:
+- Continuing training from a saved checkpoint:
 ```
 python3 main.py prev_exp_dir=</path/to/prev/exp> warm_start=True -cn <default_config> 
 python3 main.py prev_exp_dir=</path/to/prev/exp> warm_start=True warm_start_epoch=30 -cn <default_config>
 ```
-- Rerun evaluation and/or plotting from using a saved model:
+- Repeating evaluation and/or plotting from using a saved model:
 ```
 python3 main.py prev_exp_dir=</path/to/prev/exp> train=False evaluate=False -cn <default_config>
 ```
