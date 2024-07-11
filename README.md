@@ -26,6 +26,17 @@ The following is a description of currently-implemented experiments:
 | `pretraining` | Trains a network in a self-supervised manner in order to learn informative lightcone summaries. | `vit` |
 | `regression` | Trains a network to predict cosmological parameters given a lightcone. The model performance is measured in terms of the NRMSE. Produces parameter recovery plots. | `cnn`, `vit` |
 | `inference` | Trains a generative model for the posterior distribution for cosmological parameters conditioned on a given lightcone (Neural Posterior Estimation). Lightcones are summarised by a network before being passed to the generative model. Produces triangle posterior plots for a selection of test lightcones and a coverage calibration plot.| `mlp` |
+
+## Continuing an experiment
+One often needs to re-run a previous experiment. This can be achieved simply from the command line. Common examples include:
+
+- Continuing training a model from a checkpoint:
+```
+```
+- Rerun evaluation and/or plotting from using a saved model:
+```
+```
+
 ## Further usage
 This project uses [Hydra](https://hydra.cc/docs/intro/) to configure experiments. The default settings are given in `config/default.yaml` and each can be overridden via the command line. For example, to use a different learning rate and to load the entire dataset into memory:
 ```
