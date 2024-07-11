@@ -1,4 +1,3 @@
-import omegaconf
 import os
 import torch
 import torch.nn as nn
@@ -6,6 +5,7 @@ import logging
 from omegaconf import DictConfig
 
 from src import networks
+from src.utils.config import get_prev_config
 
 log = logging.getLogger('Model')
 
@@ -50,7 +50,7 @@ class Model(nn.Module):
         
         bb_dir = self.cfg.backbone
         # read backbone config
-        bcfg = omegaconf.OmegaConf.load(os.path.join(bb_dir, '.hydra/config.yaml'))
+        bcfg = get_prev_config(bb_dir)
         # initialize backbone net
         bb_cls = getattr(networks, bcfg.net.arch)
         self.bb = bb_cls(bcfg.net)

@@ -12,6 +12,8 @@ device: 0
 submit: False
 dry_run: False
 
+prev_exp_dir: null
+
 data:
   dir: /scratch2/heneka/21cmlightcones/pure_simulations/
   splits: {train: 0.7, val: 0.15, test: 0.15}
@@ -33,9 +35,10 @@ training:
   validate_freq: 1
   save_best_epoch: False
   save_freq: null
-  start_epoch: null
+  warm_start: null
+  warm_start_epoch: null
   use_tensorboard: True
-
+  
 backbone: null
 
 defaults:

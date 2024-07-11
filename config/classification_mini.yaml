@@ -1,0 +1,16 @@
+run_name: classification_mini_${net.arch}
+experiment: ClassificationExperiment
+
+data:
+  dir0: /scratch/ore/data/x2
+  dir1: /remote/gpu00/nordmann/skatr/21cm-wrapper/data/x2
+  file_by_file: True
+  
+net:
+  out_channels: 1
+
+defaults:
+  - default
+  - preprocessing: xonly
+  - net: cnn_mini
+  - _self_
