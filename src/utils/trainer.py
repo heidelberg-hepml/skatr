@@ -39,7 +39,7 @@ class Trainer:
         self.device = device
         self.exp_dir = exp_dir
         self.preprocessing = preprocessing
-        self.epoch = 0
+        self.start_epoch = 0
 
     def prepare_training(self):
         
@@ -75,21 +75,25 @@ class Trainer:
         self.epoch_val_losses = np.array([])
         self.best_val_loss = np.inf
 
+        if self.cfg.warm_start:
+            checkpoint = f"model{self.cfg.warm_start_epoch or ''}.pt"
+            path = os.path.join(self.exp_dir, checkpoint)
+            self.load(path)
+            # avoid overriding checkpoint
+            os.rename(path, path.replace('.pt', f'_old.pt'))
+            log.info(f'Warm starting training from epoch {self.start_epoch}')
+
     def run_training(self):
 
         self.prepare_training()
-
-        epochs = self.cfg.epochs
-        if start_epoch := self.cfg.start_epoch:
-            self.load(epoch=start_epoch) # TODO: Load model from checkpoint. Scheduler working?
-            log.info(f'Warm starting training from epoch {start_epoch}')
         
-        log.info(f'Beginning training loop with epochs set to {epochs}')
+        num_epochs = self.cfg.epochs - self.start_epoch      
+        log.info(f'Beginning training loop with epochs set to {num_epochs}')
         t_0 = time.time()
-        for e in range(epochs):
+        for e in range(num_epochs):
             
             t0 = time.time()
-            self.epoch = (start_epoch or 0) + e
+            self.epoch = (self.start_epoch or 0) + e
 
             # train
             self.model.net.train()
@@ -109,18 +113,18 @@ class Trainer:
             # optionally save model at given frequency
             if save_freq := self.cfg.save_freq:
                 if (self.epoch + 1) % save_freq == 0 or self.epoch == 0:
-                    self.save(epoch=f"{self.epoch}")
+                    self.save(tag=self.epoch)
 
             # estimate training time
             if e==0:
                 t1 = time.time()
-                dtEst= (t1-t0) * epochs
+                dtEst= (t1-t0) * num_epochs
                 log.info(f'Training time estimate: {dtEst/60:.2f} min = {dtEst/60**2:.2f} h')
             
         t_1 = time.time()
         traintime = t_1 - t_0
         log.info(
-            f'Finished training {epochs} epochs after {traintime:.2f} s'
+            f'Finished training {num_epochs} epochs after {traintime:.2f} s'
             f' = {traintime / 60:.2f} min = {traintime / 60 ** 2:.2f} h.'
         )
         
@@ -183,7 +187,7 @@ class Trainer:
             self.summarizer.add_scalar("epoch_loss_train", self.epoch_train_losses[-1], self.epoch)
             if self.cfg.scheduler:
                 self.summarizer.add_scalar(
-                    "learning_rate", self.scheduler.get_last_lr()[0],self.epoch
+                    "learning_rate", self.scheduler.get_last_lr()[0], self.epoch
                 )
 
     @torch.inference_mode()
@@ -223,16 +227,15 @@ class Trainer:
             state_dicts['scheduler'] = self.scheduler.state_dict()
         torch.save(state_dicts, os.path.join(self.exp_dir, f'model{tag}.pt'))
 
-    def load(self, epoch=''):
+    def load(self, path):
         """Load the model and training state"""
-        name = os.path.join(self.exp_dir, f'model{epoch}.pt')
-        state_dicts = torch.load(name, map_location=self.device)
-        self.model.load_state_dict(state_dicts['net'])
-        
+
+        state_dicts = torch.load(path, map_location=self.device)
+        self.model.load_state_dict(state_dicts['model'])
         if 'losses' in state_dicts:
             self.epoch_train_losses = state_dicts.get('losses', {})
         if 'epoch' in state_dicts:
-            self.epoch = state_dicts.get('epoch', 0)
+            self.start_epoch = state_dicts.get('epoch', 0) + 1
         if 'opt' in state_dicts:
            self.optimizer.load_state_dict(state_dicts['opt'])
         if 'scheduler' in state_dicts:
