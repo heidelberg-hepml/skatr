@@ -1,0 +1,47 @@
+run_name: pretraining_mini
+experiment: PretrainingExperiment
+evaluate: False
+plot: False
+
+model: JEPA
+ema_momentum: 0.9997
+momentum_schedule: False
+sim: l1
+augment: False
+norm_target: False
+
+net: # encoders
+  use_mask_token: False
+  use_head: False
+  hidden_dim: 144
+  depth: 4
+
+predictor:
+  use_head: False
+  hidden_dim: 48
+  depth: 4
+  learn_pos_encoding: False
+  in_dim: ${net.hidden_dim}
+  in_shape: ${net.in_shape}
+  patch_shape: ${net.patch_shape}
+
+data:
+  dir: /scratch/nordmann/data_new/x2
+  #dir: /scratch/ore/data/x5
+  file_by_file: False
+
+training:
+  epochs: 50
+  lr: 0.001
+  batch_size: 64
+  optimizer:
+    name: AdamW
+    kwargs: {weight_decay: 0.001}
+
+defaults:
+  - default
+  - masking: multiblock
+  - net: vit_mini
+  - net@predictor: vit_mini
+  - preprocessing: xonly  
+  - _self_
