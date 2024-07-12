@@ -1,7 +1,7 @@
 import logging
 import torch
 from abc import abstractmethod
-from torch.utils.data import DataLoader, random_split
+from torch.utils.data import DataLoader, random_split, Subset
 
 from src.utils import transforms
 from src.utils.trainer import Trainer
@@ -18,6 +18,10 @@ class BaseExperiment:
             k: [getattr(transforms, name)(**kwargs) for name, kwargs in d.items()]
             for k, d in self.cfg.preprocessing.items()
         }
+        if cfg.data.sequential_splits: # partition splits either sequentially or randomly
+            self.split_func = lambda dataset, split_sizes: self.sequential_split(dataset, split_sizes)
+        else:
+            self.split_func = lambda dataset, split_sizes: random_split(dataset, split_sizes, generator=torch.Generator().manual_seed(1729))
 
         self.log = logging.getLogger('Experiment')
 
@@ -63,15 +67,17 @@ class BaseExperiment:
 
         assert sum(self.cfg.data.splits.values()) == 1.
         
-        # partition the dataset (using a seed to fix the test split)
+        # partition the dataset using self.split_func
         trn = self.cfg.data.splits.train
         val = self.cfg.data.splits.val
         tst = self.cfg.data.splits.test
         dataset_splits = dict(zip(
-            ('train', 'val', 'test'), random_split(
-                dataset, [trn, val, tst], generator=torch.Generator().manual_seed(1729)
-            )
+            ('train', 'val', 'test'), self.split_func(dataset, split_sizes=[trn, val, tst])
         ))
+        split_sizes = [trn, val, tst]
+        #print(f'Seq: {self.sequential_split(dataset, split_sizes)}')
+        print(f'Random: {random_split(dataset, split_sizes, generator=torch.Generator().manual_seed(1729))[1].__len__()}')
+
         # trainval_set, test_set = random_split(
         #     dataset, [trn + val, tst], generator=torch.Generator().manual_seed(1729)
         # )
@@ -92,6 +98,16 @@ class BaseExperiment:
         }
 
         return dataloaders
+
+    def sequential_split(self, dataset, split_sizes):
+        dataset_size = len(dataset.files)
+        splits = []
+        start = 0
+        for size in split_sizes:
+            stop = start + round(size * dataset_size)
+            splits.append(Subset(dataset, range(start, stop)))
+            start = stop
+        return splits
     
     @abstractmethod
     def get_dataset(self):
