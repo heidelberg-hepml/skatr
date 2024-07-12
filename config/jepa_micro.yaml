@@ -29,6 +29,7 @@ data:
   dir: /scratch/nordmann/data_new/x5
   #dir: /scratch/ore/data/x5
   file_by_file: False
+  sequential_splits: True
 
 training:
   epochs: 50

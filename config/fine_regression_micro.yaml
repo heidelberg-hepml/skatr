@@ -1,7 +1,7 @@
 run_name: fine_regression_micro_${net.arch}
 experiment: RegressionExperiment
 
-backbone: runs/pretraining_micro/2024-06-06_22-41-11 # best: ema + adam + norm + l2
+backbone: runs/pretraining_micro/2024-07-04_18-06-14
 latent_dim: 128
 
 training:
@@ -15,7 +15,8 @@ net:
   out_act: sigmoid
 
 data:
-  dir: /scratch/ore/data/x5
+  #dir: /scratch/ore/data/x5
+  dir: /scratch/nordmann/data_new/x5
   file_by_file: False
   
 defaults:
