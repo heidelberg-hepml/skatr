@@ -4,10 +4,6 @@ experiment: RegressionExperiment
 data:
   dir: /scratch/ore/data/x5
   file_by_file: False
-
-  training:
-  batch_size: 64
-  epochs: 300
   
 defaults:
   - default
