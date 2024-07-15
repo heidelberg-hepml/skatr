@@ -5,6 +5,9 @@ data:
   dir: /scratch/ore/data/x5
   file_by_file: False
   
+net:
+  use_head: True
+  
 defaults:
   - default
   - preprocessing: xandy
