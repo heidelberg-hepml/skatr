@@ -24,3 +24,11 @@ class Center:
         self.lo = self.lo.to(x.device)
         self.hi = self.hi.to(x.device)      
         return x*(self.hi - self.lo) + self.lo
+    
+class Clamp:
+
+    def forward(self, x):
+        return x.abs().add(1).log()*x.sign()
+    
+    def reverse(self, x):
+        return x.abs().exp().add(-1)*x.sign()
