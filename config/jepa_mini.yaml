@@ -27,8 +27,9 @@ predictor:
 
 data:
   dir: /scratch/nordmann/data_new/x2
-  #dir: /scratch/ore/data/x5
-  file_by_file: False
+  #dir: /remote/gpu02/ore/data/x2
+  file_by_file: True
+  sequential_splits: True
 
 training:
   epochs: 50
