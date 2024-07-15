@@ -2,8 +2,32 @@ run_name: regression_micro_${net.arch}
 experiment: RegressionExperiment
 
 data:
-  dir: /scratch/ore/data/x5
-  file_by_file: False
+  # not stored in gpu:
+  # also use cluster.node=1 (no preferred gpu)
+  #dir: /remote/gpu01a/heneka/21cmlightcones/pure_simulations/x5
+  # new data
+  #dir: /remote/gpu00/nordmann/skatr/21cm-wrapper/data/x5
+  # new data on jerry:
+  #dir: /scratch/data/x5
+  # stored gpu01:
+  #dir: /scratch2/heneka/21cmlightcones/pure_simulations/x5
+  # stored gpu02:
+  #dir: /scratch/ore/data/x5
+  # in pbs.yaml node: gpu02
+  # increasingly worse with growing epochs
+  # optional data
+  dir: /remote/gpu01a/heneka/21cmlightcones/opt_simulations/x5
+
+  file_by_file: True
+
+cluster:
+  queue: a30
+  node: 1
+
+training:
+  epochs: 120
+  lr: 1.e-4
+  batch_size: 64
   
 defaults:
   - default
