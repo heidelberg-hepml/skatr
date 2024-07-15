@@ -28,8 +28,13 @@ predictor:
 data:
   dir: /scratch/nordmann/data_new/x2
   #dir: /remote/gpu02/ore/data/x2
-  file_by_file: True
+  file_by_file: False
   sequential_splits: True
+
+cluster:
+  queue: h100
+  node: 1
+  mem: 500gb # 21k lightcones = 462gb
 
 training:
   epochs: 50
