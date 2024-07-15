@@ -3,7 +3,12 @@ experiment: RegressionExperiment
 
 data:
   dir: /scratch/ore/data/x2
-  file_by_file: False
+  file_by_file: True
+
+training:
+  epochs: 120
+  lr: 1.e-4
+  batch_size: 64
   
 defaults:
   - default
