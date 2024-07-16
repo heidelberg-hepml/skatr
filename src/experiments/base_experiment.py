@@ -1,9 +1,9 @@
 import logging
 import torch
 from abc import abstractmethod
-from torch.utils.data import DataLoader, random_split
+from hydra.utils import instantiate
+from torch.utils.data import DataLoader, random_split, Subset
 
-from src.utils import transforms
 from src.utils.trainer import Trainer
 
 class BaseExperiment:
@@ -12,14 +12,21 @@ class BaseExperiment:
         self.cfg = cfg
         self.device = f'cuda:{cfg.device}' if cfg.use_gpu else 'cpu'
         self.exp_dir = exp_dir
+        self.log = logging.getLogger('Experiment')
         torch.set_default_dtype(getattr(torch, cfg.dtype))
 
         self.preprocessing={ # initialize preprocessing transforms for data and targets
-            k: [getattr(transforms, name)(**kwargs) for name, kwargs in d.items()]
-            for k, d in self.cfg.preprocessing.items()
+            k: [instantiate(t) for t in ts] for k, ts in self.cfg.preprocessing.items()
         }
+        transform_names = {
+            k: [t.__class__.__name__ for t in ts] for k,ts in self.preprocessing.items()
+        }
+        self.log.info(f'Loaded preprocessing dict: {transform_names}')
 
-        self.log = logging.getLogger('Experiment')
+        if cfg.data.sequential_splits: # partition splits either sequentially or randomly
+            self.split_func = lambda dataset, split_sizes: self.sequential_split(dataset, split_sizes)
+        else:
+            self.split_func = lambda dataset, split_sizes: random_split(dataset, split_sizes, generator=torch.Generator().manual_seed(1729))
 
     def run(self):
 
