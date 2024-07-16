@@ -1,26 +1,30 @@
 import sys
-from subprocess import run
+from subprocess import check_output
 from textwrap import dedent
 
 def submit(cfg, hcfg, exp_dir, log):
-    match cfg.cluster.scheduler:
-        case 'pbs':
-            exec_cmd = submit_pbs(cfg, hcfg, exp_dir)
-            log.info(f'Executing in shell: {exec_cmd}')
-        case _:
-            log.error(f'Unknown cluster scheduler "{cfg.cluster.scheduler}"')
-            sys.exit()
 
-def submit_pbs(cfg, hcfg, exp_dir):
-    
     ccfg = cfg.cluster
     out_dir = hcfg.runtime.output_dir
-    device = cfg.device or r'\`tail -c 2 \$PBS_GPUFILE\`'
     
     overrides = list(hcfg.overrides.task)
     overrides.remove('submit=True')
     overrides.append(f'hydra.run.dir={out_dir}')
 
+    match cfg.cluster.scheduler:
+        case 'pbs':
+            exec_cmd, jobid = submit_pbs(cfg, ccfg, hcfg, overrides, out_dir)
+            log.info(f'Executing in shell: {exec_cmd}')
+            if jobid:
+                log.info(f'Submitted job: {jobid}')
+
+        case _:
+            log.error(f'Unknown cluster scheduler "{cfg.cluster.scheduler}"')
+            sys.exit()
+
+def submit_pbs(cfg, ccfg, hcfg, overrides, out_dir):
+    
+    device = cfg.device or r'\`tail -c 2 \$PBS_GPUFILE\`'
     exec_cmd = dedent(f"""
         qsub <<EOT
         #PBS -N {cfg.run_name}
@@ -37,7 +41,9 @@ def submit_pbs(cfg, hcfg, exp_dir):
         EOT
     """)
         
+    jobid = None
     if not cfg.dry_run:
-        run(exec_cmd, shell=True, executable='/bin/bash')
+        jobid = check_output(exec_cmd, shell=True, executable='/bin/bash')
+        jobid = jobid.decode().strip()
 
-    return exec_cmd
+    return exec_cmd, jobid
