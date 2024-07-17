@@ -92,7 +92,8 @@ class RegressionExperiment(BaseExperiment):
                 ratio_ax.semilogy()
 
                 # axis labels
-                main_ax.set_title(PARAM_NAMES[i], fontsize=14)
+                param_idx = self.cfg.target_indices[i]
+                main_ax.set_title(PARAM_NAMES[param_idx], fontsize=14)
                 main_ax.set_ylabel('Network', fontsize=13)
                 ratio_ax.set_ylabel(
                     r'$\left|\frac{\text{Net}\,-\,\text{True}}{\text{True}}\right|$', fontsize=10
@@ -146,6 +147,7 @@ class RegressionExperiment(BaseExperiment):
 
         # stack results
         labels = np.vstack(labels)
+        labels = labels[:, sorted(self.cfg.target_indices)]
         preds = np.vstack(preds)
         
         # save results
