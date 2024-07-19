@@ -53,12 +53,15 @@ class BaseExperiment:
             )
             self.log.info('Running training')
             trainer.run_training()
-        elif self.cfg.evaluate:
+        # elif self.cfg.evaluate:
+        #     self.log.info(f'Loading model state from {self.cfg.prev_exp_dir}.')
+        #     model.load(self.exp_dir, self.device)
+        #     model.eval()
+
+        if self.cfg.evaluate:
             self.log.info(f'Loading model state from {self.cfg.prev_exp_dir}.')
             model.load(self.exp_dir, self.device)
             model.eval()
-
-        if self.cfg.evaluate:
             self.log.info('Running evaluation')
             self.evaluate(dataloaders, model)
 
