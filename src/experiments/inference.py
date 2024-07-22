@@ -32,8 +32,11 @@ class InferenceExperiment(BaseExperiment):
         """Adapted from https://github.com/heidelberg-hepml/21cm-cINN/blob/main/Plotting.py"""
         # load data
         record = np.load(os.path.join(self.exp_dir, 'param_posterior_pairs.npz'))
-        params  = record['params'] 
         samples = record['samples']
+        params  = record['params']
+        
+        param_names = [PARAM_NAMES[i] for i in sorted(self.cfg.target_indices)]
+        num_params = len(param_names)
 
         # posterior
         # check for existing plot
@@ -51,8 +54,8 @@ class InferenceExperiment(BaseExperiment):
             # iterate test poitns
             for j in range(min(len(samples), 8)):
                 samp_mc = MCSamples(
-                    samples=samples[j], names=PARAM_NAMES,
-                    labels=[l.replace('$', '') for l in PARAM_NAMES]
+                    samples=samples[j], names=param_names,
+                    labels=[l.replace('$', '') for l in param_names]
                 )
                 g = plots.get_subplot_plotter()
                 g.settings.legend_fontsize = 18
@@ -66,10 +69,10 @@ class InferenceExperiment(BaseExperiment):
                     colors=colour, contour_colors=colour
                 )
                 # add truth to 1d and 2d marginals
-                for i in range(6):
+                for i in range(num_params):
                     ax = g.subplots[i,i].axes
                     ax.axvline(params[j,i], color='k', ls='--',lw=2)
-                for n, m in combinations(range(6), 2):
+                for n, m in combinations(range(num_params), 2):
                     ax = g.subplots[m,n].axes
                     ax.scatter(params[j,n],params[j,m],color='k',marker='x',s=100)
                 
@@ -163,13 +166,17 @@ class InferenceExperiment(BaseExperiment):
         for transform in reversed(self.preprocessing['y']):
             posterior_samples = transform.reverse(posterior_samples)
 
+        # collect true parameters
+        target_indices = sorted(self.cfg.target_indices)
+        params = params[:self.cfg.num_test_points, target_indices].numpy()
+
         # save results
         savename = 'param_posterior_pairs.npz'
         savepath = os.path.join(self.exp_dir, savename)
         self.log.info(f'Saving parameter/posterior pairs as {savename}')
         np.savez(
             savepath,
-            params=params[:self.cfg.num_test_points].numpy(),
+            params=params,
             param_logprobs=param_logprobs.numpy(),
             samples=posterior_samples.numpy(),
             sample_logprobs=posterior_logprobs.numpy()
