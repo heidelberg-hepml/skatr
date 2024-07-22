@@ -90,8 +90,8 @@ class Trainer:
         
         num_epochs = self.cfg.epochs - self.start_epoch
         log.info(f'Beginning training loop with epochs set to {num_epochs}')
-        if self.patience:
-            log.info(f'Early stopping patience set to {self.patience}')
+        if self.cfg.patience:
+            log.info(f'Early stopping patience set to {self.cfg.patience}')
 
         t_0 = time.time()
         for e in range(num_epochs):
