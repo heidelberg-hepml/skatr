@@ -34,7 +34,8 @@ training:
     RotateAndReflect: {include_identity: True}
   gradient_norm: null
   validate_freq: 1
-  save_best_epoch: False
+  patience: null
+  save_best_epoch: True
   save_freq: null
   warm_start: null
   warm_start_epoch: null
