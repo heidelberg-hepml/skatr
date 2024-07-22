@@ -40,6 +40,7 @@ class Trainer:
         self.exp_dir = exp_dir
         self.preprocessing = preprocessing
         self.start_epoch = 0
+        self.patience_counter = 0
 
     def prepare_training(self):
         
@@ -87,8 +88,11 @@ class Trainer:
 
         self.prepare_training()
         
-        num_epochs = self.cfg.epochs - self.start_epoch      
+        num_epochs = self.cfg.epochs - self.start_epoch
         log.info(f'Beginning training loop with epochs set to {num_epochs}')
+        if self.patience:
+            log.info(f'Early stopping patience set to {self.patience}')
+
         t_0 = time.time()
         for e in range(num_epochs):
             
@@ -104,11 +108,19 @@ class Trainer:
                 self.model.eval()
                 self.validate_one_epoch()
                 
-                # save model if val_loss improved
-                if self.cfg.save_best_epoch:
-                    if (val_loss := self.epoch_val_losses[-1]) < self.best_val_loss:
+                # check whether validation loss improved
+                if (val_loss := self.epoch_val_losses[-1]) < self.best_val_loss:
+                    self.patience_counter = 0
+                    
+                    if self.cfg.save_best_epoch: # save best checkpoint
                         self.best_val_loss = val_loss
                         self.save()
+
+                elif self.cfg.patience: # early stopping
+                    self.patience_counter += 1
+                    if self.patience_counter == self.cfg.patience:
+                        log.info(f'Stopping training early at epoch {self.epoch}')
+                        break
 
             # optionally save model at given frequency
             if save_freq := self.cfg.save_freq:
@@ -124,7 +136,7 @@ class Trainer:
         t_1 = time.time()
         traintime = t_1 - t_0
         log.info(
-            f'Finished training {num_epochs} epochs after {traintime:.2f} s'
+            f'Finished training {self.epoch + 1} epochs after {traintime:.2f} s'
             f' = {traintime / 60:.2f} min = {traintime / 60 ** 2:.2f} h.'
         )
         
