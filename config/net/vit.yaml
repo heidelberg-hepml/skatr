@@ -14,3 +14,15 @@ mlp_drop: 0.
 learn_pos_encoding: True
 out_act: sigmoid
 checkpoint_grads: False
+
+use_head: False
+head:
+  _target_: src.networks.MLP
+  cfg:
+    units:
+      - ${net.hidden_dim}
+      - ${net.hidden_dim}
+      - ${net.out_channels}
+    act: relu
+    out_act: ${net.out_act}
+    drop: ${net.mlp_drop}

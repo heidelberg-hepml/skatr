@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from einops import rearrange, repeat
+from hydra.utils import instantiate
 from timm.models.vision_transformer import Attention, Mlp
 from torch.utils.checkpoint import checkpoint
 
@@ -53,13 +54,7 @@ class ViT(nn.Module):
 
         # output head
         if cfg.use_head:
-            self.head = nn.Sequential(
-                nn.Linear(dim, dim),
-                nn.ReLU(),
-                nn.Dropout(cfg.mlp_drop),
-                nn.Linear(dim, cfg.out_channels)
-            )
-            self.out_act = getattr(F, cfg.out_act) if cfg.out_act else nn.Identity()
+            self.head = instantiate(cfg.head)
 
         # masking
         if self.cfg.use_mask_token:
@@ -107,11 +102,9 @@ class ViT(nn.Module):
         x = self.out_norm(x)
 
         if self.cfg.use_head:
-            # aggregate patch features
+            # aggregate patch features and apply task head
             x = torch.mean(x, axis=1) # (B, D)
-
-            # apply task head
-            x = self.out_act(self.head(x)) # (B, Z)
+            x = self.head(x) # (B, Z)
 
         return x
 
