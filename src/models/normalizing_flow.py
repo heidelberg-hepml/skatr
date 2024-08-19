@@ -5,12 +5,13 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from hydra.utils import instantiate
 from omegaconf import DictConfig
 from scipy.stats import special_ortho_group
 from typing import Callable, Iterable, Type, Union
 
 from src.models.base_model import Model
-from src.networks import ViT
+from src.networks import ViT, MLP
 
 class INN(Model):
     """
@@ -20,6 +21,9 @@ class INN(Model):
         super().__init__(cfg)
         self.cfg = cfg
         self.sum_net = self.bb if cfg.backbone else ViT(cfg.summary_net)
+        if cfg.use_extra_summary_mlp:
+            self.extra_mlp = MLP(cfg.extra_mlp)
+
         self.build_inn()
 
     def construct_subnet(self, x_in: int, x_out: int) -> nn.Module:
@@ -33,6 +37,8 @@ class INN(Model):
         c = self.sum_net(c)
         if not hasattr(self.sum_net, 'head'):
             c = c.mean(1) # (B, T, D) -> (B, D)
+        if self.cfg.use_extra_summary_mlp:
+            c = self.extra_mlp(c)
         return c
 
     def build_inn(self):
