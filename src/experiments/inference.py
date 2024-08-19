@@ -5,22 +5,21 @@ import numpy as np
 import os
 import torch
 from getdist import plots, MCSamples
-from glob import glob
 from itertools import combinations
 from matplotlib.backends.backend_pdf import PdfPages
-from torch.utils.data import Dataset
 
 from src.experiments.base_experiment import BaseExperiment
 from src.models import ConditionalFlowMatcher, INN
+from src.utils import datasets
 from src.utils.plotting import PARAM_NAMES
 
 class InferenceExperiment(BaseExperiment):
     
     def get_dataset(self):
         if self.cfg.data.file_by_file:
-            return InferenceDatasetByFile(self.cfg.data)
+            return datasets.LabelledDatasetByFile(self.cfg.data)
         else:
-            return InferenceDataset(self.cfg.data, self.device)
+            return datasets.LabelledDataset(self.cfg.data, self.device)
 
     def get_model(self):
         if self.cfg.generative_model == 'CFM':
@@ -181,42 +180,3 @@ class InferenceExperiment(BaseExperiment):
             samples=posterior_samples.numpy(),
             sample_logprobs=posterior_logprobs.numpy()
         )
-
-class InferenceDatasetByFile(Dataset):
-
-    def __init__(self, cfg):
-        self.cfg = cfg
-        self.files = sorted(glob(f'{cfg.dir}/run*.npz'))
-
-    def __len__(self):
-        return len(self.files)
-
-    def __getitem__(self, idx):
-        
-        record = np.load(self.files[idx])
-        X = torch.from_numpy(record['image']).to(torch.get_default_dtype())
-        y = torch.from_numpy(record['label']).to(torch.get_default_dtype())
-
-        return X, y
-
-class InferenceDataset(Dataset):
-
-    def __init__(self, cfg, device):
-        self.files = sorted(glob(f'{cfg.dir}/run*.npz'))
-        self.Xs, self.ys = [], []
-        
-        for f in self.files:
-            record = np.load(f)
-            X = torch.from_numpy(record['image']).to(torch.get_default_dtype())
-            y = torch.from_numpy(record['label']).to(torch.get_default_dtype())
-            self.Xs.append(X)
-            self.ys.append(y)
-            if cfg.on_gpu:
-                X = X.to(device)
-                y = y.to(device)
-
-    def __len__(self):
-        return len(self.Xs)
-
-    def __getitem__(self, idx):
-        return self.Xs[idx], self.ys[idx]

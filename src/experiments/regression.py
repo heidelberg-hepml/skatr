@@ -2,22 +2,22 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 import torch
-from glob import glob
 from matplotlib import gridspec
 from matplotlib.backends.backend_pdf import PdfPages
-from torch.utils.data import Dataset
 
 from src.experiments.base_experiment import BaseExperiment
 from src.models import Regressor
+from src.utils import datasets
 from src.utils.plotting import PARAM_NAMES
 
 class RegressionExperiment(BaseExperiment):
     
     def get_dataset(self):
         if self.cfg.data.file_by_file:
-            return RegressionDatasetByFile(self.cfg.data)
+            return datasets.LabelledDatasetByFile(self.cfg.data)
         else:
-            return RegressionDataset(self.cfg.data, self.device)
+            # summary = self.model.bb if self.cfg.frozen_backbone else None
+            return datasets.LabelledDataset(self.cfg.data, self.device)#, summary=summary)
 
     def get_model(self):
         return Regressor(self.cfg)
@@ -154,43 +154,3 @@ class RegressionExperiment(BaseExperiment):
         savepath = os.path.join(self.exp_dir, 'label_pred_pairs.npy')
         self.log.info(f'Saving label/prediction pairs to {savepath}')
         np.save(savepath, np.stack([labels, preds], axis=-1))
-
-
-class RegressionDatasetByFile(Dataset):
-
-    def __init__(self, cfg):
-        self.cfg = cfg
-        self.files = sorted(glob(f'{cfg.dir}/run*.npz'))
-
-    def __len__(self):
-        return len(self.files)
-
-    def __getitem__(self, idx):
-        
-        record = np.load(self.files[idx])
-        X = torch.from_numpy(record['image']).to(torch.get_default_dtype()) # TODO: Add option for `channels_last` memory format?
-        y = torch.from_numpy(record['label']).to(torch.get_default_dtype()) # TODO: Cast with numpy before
-
-        return X, y
-
-class RegressionDataset(Dataset):
-
-    def __init__(self, cfg, device):
-        self.files = sorted(glob(f'{cfg.dir}/run*.npz'))
-        self.Xs, self.ys = [], []
-        
-        for f in self.files:
-            record = np.load(f)
-            X = torch.from_numpy(record['image']).to(torch.get_default_dtype()) # TODO: Add option for `channels_last` memory format?
-            y = torch.from_numpy(record['label']).to(torch.get_default_dtype()) # TODO: Cast with numpy before
-            if cfg.on_gpu:
-                X = X.to(device)
-                y = y.to(device)
-            self.Xs.append(X)
-            self.ys.append(y)
-
-    def __len__(self):
-        return len(self.Xs)
-
-    def __getitem__(self, idx):
-        return self.Xs[idx], self.ys[idx]
