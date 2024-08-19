@@ -25,6 +25,7 @@ def submit(cfg, hcfg, exp_dir, log):
 def submit_pbs(cfg, ccfg, hcfg, overrides, out_dir):
     
     device = cfg.device or r'\`tail -c 2 \$PBS_GPUFILE\`'
+    dependency = f'#PBS -W depend={ccfg.dependency}' if ccfg.dependency else ''
     exec_cmd = dedent(f"""
         qsub <<EOT
         #PBS -N {cfg.run_name}
@@ -33,6 +34,7 @@ def submit_pbs(cfg, ccfg, hcfg, overrides, out_dir):
         #PBS -l mem={ccfg.mem},walltime={ccfg.time}
         #PBS -o {out_dir}/pbs.log
         #PBS -j oe
+        {dependency}
         cd {cfg.proj_dir}
         source setup.sh
         export CUDA_VISIBLE_DEVICES={device}
