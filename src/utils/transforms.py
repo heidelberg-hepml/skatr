@@ -24,8 +24,7 @@ class Center:
         self.lo = self.lo.to(x.device)
         self.hi = self.hi.to(x.device)
         if self.indices is not None:
-            x = x[:,sorted(self.indices)]
-            # x = x[:, self.indices]
+            x = x[..., sorted(self.indices)]
         return (x - self.lo)/(self.hi - self.lo)
     
     def reverse(self, x):

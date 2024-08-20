@@ -4,6 +4,7 @@ from abc import abstractmethod
 from hydra.utils import instantiate
 from torch.utils.data import DataLoader, random_split, Subset
 
+from src.utils.datasets import SummarizedLCDataset
 from src.utils.trainer import Trainer
 
 class BaseExperiment:
@@ -30,12 +31,6 @@ class BaseExperiment:
 
     def run(self):
 
-        self.log.info('Reading data')
-        dataset = self.get_dataset() # TODO: Print the dataset signature/shape
-
-        self.log.info('Initializing dataloaders')
-        dataloaders = self.get_dataloaders(dataset)
-
         self.log.info(f'Using device {self.device}')
         self.log.info('Initializing model')
         if self.cfg.train or self.cfg.evaluate:
@@ -46,6 +41,20 @@ class BaseExperiment:
                 f'{sum(w.numel() for w in model.trainable_parameters)} trainable parameters'
             )
 
+        self.log.info('Reading and preprocessing data')
+        dataset = self.get_dataset() # TODO: Print the dataset signature/shape
+
+        # optionally summarize (compress) dataset
+        if self.cfg.backbone and self.cfg.frozen_backbone: # TODO: embed in batches ... how?
+            self.log.info('Summarizing dataset')
+
+            dataset = SummarizedLCDataset(
+                dataset, summary_net=model.bb, device=self.device, augment=self.cfg.training.augment
+            )
+
+        self.log.info('Initializing dataloaders')
+        dataloaders = self.get_dataloaders(dataset)
+
         if self.cfg.train:
             self.log.info('Initializing trainer')
             trainer = Trainer(
@@ -53,13 +62,9 @@ class BaseExperiment:
             )
             self.log.info('Running training')
             trainer.run_training()
-        # elif self.cfg.evaluate:
-        #     self.log.info(f'Loading model state from {self.cfg.prev_exp_dir}.')
-        #     model.load(self.exp_dir, self.device)
-        #     model.eval()
 
         if self.cfg.evaluate:
-            self.log.info(f'Loading model state from {self.cfg.prev_exp_dir}.')
+            self.log.info(f'Loading model state from {self.exp_dir}.')
             model.load(self.exp_dir, self.device)
             model.eval()
             self.log.info('Running evaluation')
@@ -81,8 +86,6 @@ class BaseExperiment:
             ('train', 'val', 'test'), self.split_func(dataset, split_sizes=[trn, val, tst])
         ))
         split_sizes = [trn, val, tst]
-        #print(f'Seq: {self.sequential_split(dataset, split_sizes)}')
-        print(f'Random: {random_split(dataset, split_sizes, generator=torch.Generator().manual_seed(1729))[1].__len__()}')
 
         # trainval_set, test_set = random_split(
         #     dataset, [trn + val, tst], generator=torch.Generator().manual_seed(1729)
@@ -92,10 +95,11 @@ class BaseExperiment:
         del dataset#, trainval_set # TODO: Assess if this is really necessary
 
         # create dataloaders
+        num_cpus = 0 if self.cfg.data.on_gpu or self.cfg.frozen_backbone else self.cfg.num_cpus
         dataloaders = {
             k: DataLoader(
                 d, shuffle=k=='train', drop_last=True, pin_memory=False, # pinning can cause memory issues with large lightcones
-                num_workers=0 if self.cfg.data.on_gpu else self.cfg.num_cpus, # parallel loading from GPU causes CUDA error
+                num_workers=num_cpus, # parallel loading from GPU causes CUDA error
                 batch_size=(
                     self.cfg.training.batch_size if k=='train'
                     else self.cfg.training.test_batch_size

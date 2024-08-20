@@ -16,10 +16,11 @@ from src.utils.plotting import PARAM_NAMES
 class InferenceExperiment(BaseExperiment):
     
     def get_dataset(self):
+        prep = self.preprocessing
         if self.cfg.data.file_by_file:
-            return datasets.LabelledDatasetByFile(self.cfg.data)
+            return datasets.LCDatasetByFile(self.cfg.data, preprocessing=prep)
         else:
-            return datasets.LabelledDataset(self.cfg.data, self.device)
+            return datasets.LCDataset(self.cfg.data, self.device, preprocessing=prep)
 
     def get_model(self):
         if self.cfg.generative_model == 'CFM':
@@ -128,14 +129,10 @@ class InferenceExperiment(BaseExperiment):
         
         # preprocess lightcones and parameters
         lc_batch = lc_batch[:self.cfg.num_test_points].to(self.device)
-        processed_params = params[:self.cfg.num_test_points].to(self.device)
-        for transform in self.preprocessing['x']:
-            lc_batch = transform.forward(lc_batch)
-        for transform in self.preprocessing['y']:
-            processed_params = transform.forward(processed_params)
+        params = params[:self.cfg.num_test_points].to(self.device)
 
         # evaluate test param likelihoods
-        param_logprobs = model.log_prob(processed_params, lc_batch).cpu()
+        param_logprobs = model.log_prob(params, lc_batch).cpu()
 
         # loop over test points
         for i in range(self.cfg.num_test_points):
@@ -161,13 +158,11 @@ class InferenceExperiment(BaseExperiment):
         posterior_samples = torch.stack(posterior_samples)
         posterior_logprobs = torch.stack(posterior_logprobs)
         
-        # postprocess posterior samples
+        # postprocess
+        params = params.cpu()
         for transform in reversed(self.preprocessing['y']):
             posterior_samples = transform.reverse(posterior_samples)
-
-        # collect true parameters
-        target_indices = sorted(self.cfg.target_indices)
-        params = params[:self.cfg.num_test_points, target_indices].numpy()
+            params = transform.reverse(params)
 
         # save results
         savename = 'param_posterior_pairs.npz'

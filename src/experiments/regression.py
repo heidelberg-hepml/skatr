@@ -13,11 +13,11 @@ from src.utils.plotting import PARAM_NAMES
 class RegressionExperiment(BaseExperiment):
     
     def get_dataset(self):
+        prep = self.preprocessing
         if self.cfg.data.file_by_file:
-            return datasets.LabelledDatasetByFile(self.cfg.data)
+            return datasets.LCDatasetByFile(self.cfg.data, preprocessing=prep)
         else:
-            # summary = self.model.bb if self.cfg.frozen_backbone else None
-            return datasets.LabelledDataset(self.cfg.data, self.device)#, summary=summary)
+            return datasets.LCDataset(self.cfg.data, self.device, preprocessing=prep)
 
     def get_model(self):
         return Regressor(self.cfg)
@@ -128,26 +128,21 @@ class RegressionExperiment(BaseExperiment):
         labels, preds = [], []
         for x, y in dataloaders['test']:
 
-            labels.append(y.cpu().numpy())
-            
-            # preprocess input
-            x = x.to(self.device)
-            for transform in self.preprocessing['x']:
-                x = transform.forward(x)
-
             # predict
+            x = x.to(self.device)
             pred = model.predict(x).detach().cpu()
 
             # postprocess output
             for transform in reversed(self.preprocessing['y']):
                 pred = transform.reverse(pred)
+                y = transform.reverse(y)
             
             # append prediction
             preds.append(pred.numpy())
+            labels.append(y.cpu().numpy())
 
         # stack results
         labels = np.vstack(labels)
-        labels = labels[:, sorted(self.cfg.target_indices)]
         preds = np.vstack(preds)
         
         # save results

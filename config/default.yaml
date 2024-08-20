@@ -17,7 +17,7 @@ prev_exp_dir: null
 data:
   dir: /scratch2/heneka/21cmlightcones/pure_simulations/
   splits: {train: 0.75, val: 0.1, test: 0.15}
-  sequential_splits: True
+  sequential_splits: False
   on_gpu: False
   file_by_file: True
 
@@ -30,6 +30,7 @@ training:
     name: AdamW
     kwargs: {weight_decay: 1.e-3}
   scheduler: {}
+  augment: True
   augmentations:
     RotateAndReflect: {include_identity: True}
   gradient_norm: null
@@ -42,6 +43,7 @@ training:
   use_tensorboard: True
   
 backbone: null
+frozen_backbone: True
 
 defaults:
   - cluster: pbs

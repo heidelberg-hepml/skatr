@@ -12,7 +12,7 @@ class Regressor(Model):
         return loss
     
     def forward(self, x):
-        if self.cfg.backbone:
+        if self.cfg.backbone and not self.cfg.frozen_backbone:
             with torch.no_grad():
                 x = self.bb(x)
                 if not hasattr(self.bb, 'head'):

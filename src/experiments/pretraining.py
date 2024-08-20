@@ -7,10 +7,11 @@ from src.utils import datasets
 class PretrainingExperiment(BaseExperiment):
     
     def get_dataset(self):
+        prep = self.preprocessing
         if self.cfg.data.file_by_file:
-            return datasets.UnlabelledDatasetByFile(self.cfg.data)
+            return datasets.LCDatasetByFile(self.cfg.data, preprocessing=prep, use_labels=False)
         else:
-            return datasets.UnlabelledDataset(self.cfg.data, self.device)
+            return datasets.LCDataset(self.cfg.data, self.device, preprocessing=prep, use_labels=False)
 
     def get_model(self):
         model_cls = getattr(models, self.cfg.model)

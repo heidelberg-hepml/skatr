@@ -61,7 +61,8 @@ class Trainer:
         self.augmentations = [
             getattr(augmentations, name)(**kwargs)
             for name, kwargs in self.cfg.augmentations.items()
-        ]
+        ] if self.cfg.augment else [] # TODO: depracate flag by making augmentations a list like preprocessing
+        
         if augs := self.augmentations:
             log.info(f"Loaded augmentations: {', '.join([a.__class__.__name__ for a in augs])}")
 
@@ -160,11 +161,6 @@ class Trainer:
             # place batch on device
             batch = ensure_device(batch, self.device)
 
-            # preprocess
-            for i, fs in enumerate(self.preprocessing.values()):
-                for f in fs:
-                    batch[i] = f.forward(batch[i])
-
             # augment
             for augment in self.augmentations:
                 batch[0] = augment(batch[0])
@@ -211,12 +207,7 @@ class Trainer:
 
             # place x on device
             batch = ensure_device(batch, self.device)
-            
-            # preprocess
-            for i, fs in enumerate(self.preprocessing.values()):
-                for f in fs:
-                    batch[i] = f.forward(batch[i])
-
+            # calculate loss
             loss = self.model.batch_loss(batch).detach().cpu().numpy()
             val_losses.append(loss)
 
