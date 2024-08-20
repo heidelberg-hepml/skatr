@@ -47,10 +47,7 @@ class BaseExperiment:
         # optionally summarize (compress) dataset
         if self.cfg.backbone and self.cfg.frozen_backbone: # TODO: embed in batches ... how?
             self.log.info('Summarizing dataset')
-
-            dataset = SummarizedLCDataset(
-                dataset, summary_net=model.bb, device=self.device, augment=self.cfg.training.augment
-            )
+            dataset = SummarizedLCDataset(dataset, summary_net=model.bb, device=self.device)
 
         self.log.info('Initializing dataloaders')
         dataloaders = self.get_dataloaders(dataset)
@@ -75,18 +72,18 @@ class BaseExperiment:
             self.plot()
     
     def get_dataloaders(self, dataset):
-
-        assert sum(self.cfg.data.splits.values()) == 1.
         
         # partition the dataset using self.split_func
         trn = self.cfg.data.splits.train
-        val = self.cfg.data.splits.val
         tst = self.cfg.data.splits.test
+        val = 1 - trn - tst
+        assert val > 0, 'A validation split is required'
+
         dataset_splits = dict(zip(
             ('train', 'val', 'test'), self.split_func(dataset, split_sizes=[trn, val, tst])
         ))
-        split_sizes = [trn, val, tst]
-
+        
+        # split_sizes = [trn, val, tst]
         # trainval_set, test_set = random_split(
         #     dataset, [trn + val, tst], generator=torch.Generator().manual_seed(1729)
         # )

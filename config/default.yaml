@@ -16,7 +16,9 @@ prev_exp_dir: null
 
 data:
   dir: /scratch2/heneka/21cmlightcones/pure_simulations/
-  splits: {train: 0.75, val: 0.1, test: 0.15}
+  splits:
+    train: 0.75
+    test: 0.15
   sequential_splits: False
   on_gpu: False
   file_by_file: True
