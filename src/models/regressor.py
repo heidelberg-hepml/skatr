@@ -13,10 +13,9 @@ class Regressor(Model):
     
     def forward(self, x):
         if self.cfg.backbone and not self.cfg.frozen_backbone:
-            with torch.no_grad():
-                x = self.bb(x)
-                if not hasattr(self.bb, 'head'):
-                    x = x.mean(1) # (B, T, D) --> (B, D)
+            x = self.bb(x)
+            if not hasattr(self.bb, 'head'):
+                x = x.mean(1) # (B, T, D) --> (B, D)
 
         return self.net(x)
 

@@ -5,7 +5,6 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from hydra.utils import instantiate
 from omegaconf import DictConfig
 from scipy.stats import special_ortho_group
 from typing import Callable, Iterable, Type, Union
@@ -58,7 +57,6 @@ class INN(Model):
                 )
         block_kwargs = {
             "num_bins": self.cfg.inn.num_bins,
-            # "subnet_constructor": constructor_fct,
             "subnet_constructor": self.construct_subnet,
             "left": lower_bound,
             "right": upper_bound,
