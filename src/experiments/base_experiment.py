@@ -11,7 +11,7 @@ class BaseExperiment:
 
     def __init__(self, cfg, exp_dir):
         self.cfg = cfg
-        self.device = f'cuda:{cfg.device}' if cfg.use_gpu else 'cpu'
+
         self.exp_dir = exp_dir
         self.log = logging.getLogger('Experiment')
         torch.set_default_dtype(getattr(torch, cfg.dtype))
@@ -28,6 +28,11 @@ class BaseExperiment:
             self.split_func = lambda dataset, split_sizes: self.sequential_split(dataset, split_sizes)
         else:
             self.split_func = lambda dataset, split_sizes: random_split(dataset, split_sizes, generator=torch.Generator().manual_seed(1729))
+
+        self.device = (
+            f'cuda:{cfg.device}' if cfg.use_gpu and torch.cuda.is_available()
+            else f'mps:{cfg.device}' if cfg.use_gpu else 'cpu'
+        )
 
     def run(self):
 
