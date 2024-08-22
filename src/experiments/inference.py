@@ -139,7 +139,8 @@ class InferenceExperiment(BaseExperiment):
             self.log.info(f'Sampling posterior for test point {i+1}')
             
             # select corresponding lightcone
-            lc = lc_batch[i].unsqueeze(0).repeat(self.cfg.sample_batch_size, 1, 1, 1, 1)
+            lc = lc_batch[i].unsqueeze(0)
+            lc = lc.repeat(self.cfg.sample_batch_size, *[1]*(lc.ndim-1))
 
             # sample posterior in batches
             sample_list, logprob_list = [], []
@@ -170,7 +171,7 @@ class InferenceExperiment(BaseExperiment):
         self.log.info(f'Saving parameter/posterior pairs as {savename}')
         np.savez(
             savepath,
-            params=params,
+            params=params.numpy(),
             param_logprobs=param_logprobs.numpy(),
             samples=posterior_samples.numpy(),
             sample_logprobs=posterior_logprobs.numpy()
