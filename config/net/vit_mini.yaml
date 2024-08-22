@@ -5,7 +5,7 @@ out_channels: 6
 patch_shape: [7, 7, 25] # 10 x 10 x 45 = 4500 tokens with 7x7x25 = 1225 voxels
 mask_frac: 0.
 hidden_dim: 96
-depth: 2
+depth: 4
 num_heads: 4
 mlp_ratio: 2.0
 attn_drop: 0.
