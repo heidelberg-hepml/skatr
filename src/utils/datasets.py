@@ -3,7 +3,7 @@ import torch
 from glob import glob
 from torch.utils.data import Dataset
 
-# from src.utils.augmentations import RotateAndReflect
+from src.utils.augmentations import RotateAndReflect
 
 class LCDataset(Dataset):
 
@@ -93,28 +93,24 @@ class LCDatasetByFile(Dataset):
 
 class SummarizedLCDataset(Dataset):
 
-    def __init__(self, dataset, summary_net, device): #, augment=True):
+    def __init__(self, dataset, summary_net, device, augment=False):
         
-        self.Xs = dataset.Xs
-        self.ys = dataset.ys
+        self.Xs = []
+        self.ys = []
         self.summary_net = summary_net
 
-        # if augment:
-        #     aug = RotateAndReflect()
-        #     self.aug_Xs = []
+        if augment:
+            aug = RotateAndReflect()
 
-        for i in range(len(self.Xs)):
-            
-            X = self.Xs[i]
-            y = self.ys[i]
+        for X, y in dataset:
             
             X = X.to(device).unsqueeze(0)
-            self.Xs[i] = self.summarize(X)
-            
-            # if augment: # this implementation leads to data leakage across training splits
-            #     for x in aug.enumerate(X):
-            #         self.Xs.append(self.summarize(x))
-            #         self.ys.append(y)
+            self.Xs.append(self.summarize(X))
+            self.ys.append(y)
+            if augment:
+                for x in aug.enumerate(X):
+                    self.Xs.append(self.summarize(x))
+                    self.ys.append(y)
 
     def summarize(self, x):
         with torch.no_grad():
