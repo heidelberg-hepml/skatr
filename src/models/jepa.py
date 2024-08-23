@@ -1,5 +1,5 @@
+import copy
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 from omegaconf import DictConfig
 
@@ -13,10 +13,11 @@ class JEPA(Model):
         super().__init__(cfg)
         self.predictor = networks.PredictorViT(cfg.predictor)
         self.ctx_encoder = self.net
-        self.tgt_encoder = self.net.__class__(cfg.net)
+        self.tgt_encoder = (
+            copy.deepcopy(self.ctx_encoder) if cfg.init_tgt_as_ctx else
+            self.net.__class__(cfg.net)
+        )
         self.augment = augmentations.RotateAndReflect()
-        # if cfg.norm_target:
-        #     self.norm = nn.BatchNorm1d(self.net.hidden_dim)  # TODO: Remove norm?
 
         match cfg.sim:
             case 'l2':
@@ -52,8 +53,6 @@ class JEPA(Model):
 
             # keep only target tokens in current block
             local_tgt_tokens = masks.gather_tokens(tgt_tokens, tgt_mask) 
-            # if self.cfg.norm_target: # TODO: is norm any help?
-            #     tgt_tokens_iter = self.norm(tgt_tokens_iter)
 
             # similarity loss
             loss += -self.sim(prd_tokens, local_tgt_tokens)
