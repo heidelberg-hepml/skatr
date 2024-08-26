@@ -12,12 +12,12 @@ from src.utils.plotting import PARAM_NAMES
 
 class RegressionExperiment(BaseExperiment):
     
-    def get_dataset(self):
+    def get_dataset(self, directory):
         prep = self.preprocessing
         if self.cfg.data.file_by_file:
-            return datasets.LCDatasetByFile(self.cfg.data, preprocessing=prep)
+            return datasets.LCDatasetByFile(self.cfg.data, directory, preprocessing=prep)
         else:
-            return datasets.LCDataset(self.cfg.data, self.device, preprocessing=prep)
+            return datasets.LCDataset(self.cfg.data, directory, self.device, preprocessing=prep)
 
     def get_model(self):
         return Regressor(self.cfg)

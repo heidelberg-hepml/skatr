@@ -22,6 +22,7 @@ data:
   sequential_splits: False
   on_gpu: False
   file_by_file: True
+  use_test_dir: False
 
 training:
   epochs: 1

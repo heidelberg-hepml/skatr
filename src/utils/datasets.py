@@ -7,10 +7,10 @@ from src.utils.augmentations import RotateAndReflect
 
 class LCDataset(Dataset):
 
-    def __init__(self, cfg, device, use_labels=True, preprocessing=None):
+    def __init__(self, cfg, directory, device, use_labels=True, preprocessing=None):
 
         self.use_labels = use_labels
-        self.files = sorted(glob(f'{cfg.dir}/run*.npz'))
+        self.files = sorted(glob(f'{directory}/run*.npz'))
         self.Xs, self.ys = [], []
 
         dtype = torch.get_default_dtype()
@@ -45,13 +45,13 @@ class LCDataset(Dataset):
 
 class LCDatasetByFile(Dataset):
 
-    def __init__(self, cfg, use_labels=True, preprocessing=None):
+    def __init__(self, cfg, directory, use_labels=True, preprocessing=None):
         
         self.cfg = cfg
         self.use_labels = use_labels
         self.preprocessing = preprocessing
 
-        self.files = sorted(glob(f'{cfg.dir}/run*.npz'))
+        self.files = sorted(glob(f'{directory}/run*.npz'))
         self.dtype = torch.get_default_dtype()
 
     def __len__(self):
@@ -75,21 +75,7 @@ class LCDatasetByFile(Dataset):
                 y = f.forward(y)
 
         return (X, y) if self.use_labels else (X,)
-
-
-# class UnlabelledDataset(Dataset):
-
-#     def __init__(self, cfg, device):
-#         self.files = sorted(glob(f'{cfg.dir}/run*.npz'))
-#         self.Xs = []
-        
-#         for f in self.files:
-#             record = np.load(f)
-#             X = torch.from_numpy(record['image']).to(torch.get_default_dtype())
-#             if cfg.on_gpu:
-#                 X = X.to(device)
-#             self.Xs.append(X)
-
+    
 
 class SummarizedLCDataset(Dataset):
 

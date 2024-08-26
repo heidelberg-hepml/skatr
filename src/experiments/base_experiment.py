@@ -46,10 +46,15 @@ class BaseExperiment:
         if self.cfg.train or self.cfg.evaluate:
             
             self.log.info('Reading and preprocessing data')
-            dataset = self.get_dataset() # TODO: Print the dataset signature/shape
+            dataset = self.get_dataset(self.cfg.data.dir) # TODO: Print the dataset signature/shape
+
+            dataset_test = (
+                self.get_dataset(self.cfg.data.dir + '/test')
+                if self.cfg.data.use_test_dir else None
+            )
 
             self.log.info('Initializing dataloaders')
-            dataloaders = self.get_dataloaders(dataset)
+            dataloaders = self.get_dataloaders(dataset, dataset_test=dataset_test)
 
         if self.cfg.train:
             
@@ -84,18 +89,33 @@ class BaseExperiment:
             self.log.info('Making plots')
             self.plot()
     
-    def get_dataloaders(self, dataset):
+    def get_dataloaders(self, dataset, dataset_test=None):
         
-        # partition the dataset using self.split_func
-        trn = self.cfg.data.splits.train
-        tst = self.cfg.data.splits.test
-        val = 1 - trn - tst
-        assert val > 0, 'A validation split is required'
+        fixed_rng = torch.Generator().manual_seed(1729)
 
-        dataset_splits = dict(zip(
-            ('train', 'val', 'test'),
-            random_split(dataset, [trn, val, tst], generator=torch.Generator().manual_seed(1729))
-        ))
+        if dataset_test is None:
+            # partition the dataset using self.split_func
+            trn = self.cfg.data.splits.train
+            tst = self.cfg.data.splits.test
+            val = 1 - trn - tst
+            assert val > 0, 'A validation split is required'
+
+            dataset_splits = dict(zip(
+                ('train', 'val', 'test'),
+                random_split(dataset, [trn, val, tst], generator=fixed_rng)
+            ))
+        else:
+            trn = self.cfg.data.splits.train
+            val = 1 - trn 
+            assert val > 0, 'A validation split is required'
+            
+            dataset_train, dataset_val = random_split(
+                dataset, [trn, val], generator=fixed_rng
+            )
+            dataset_splits = {
+                'train': dataset_train, 'val': dataset_val, 'test': dataset_test
+            }
+
         del dataset #TODO: Assess if this is really necessary
         
         # create dataloaders
@@ -120,16 +140,6 @@ class BaseExperiment:
             )
 
         return dataloaders
-
-    # def sequential_split(self, dataset, split_sizes):
-    #     dataset_size = len(dataset.files)
-    #     splits = []
-    #     start = 0
-    #     for size in split_sizes:
-    #         stop = start + round(size * dataset_size)
-    #         splits.append(Subset(dataset, range(start, stop)))
-    #         start = stop
-    #     return splits
     
     @abstractmethod
     def get_dataset(self):

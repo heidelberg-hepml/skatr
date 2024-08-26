@@ -6,12 +6,16 @@ from src.utils import datasets
 
 class PretrainingExperiment(BaseExperiment):
     
-    def get_dataset(self):
+    def get_dataset(self, directory):
         prep = self.preprocessing
         if self.cfg.data.file_by_file:
-            return datasets.LCDatasetByFile(self.cfg.data, preprocessing=prep, use_labels=False)
+            return datasets.LCDatasetByFile(
+                self.cfg.data, directory, preprocessing=prep, use_labels=False
+            )
         else:
-            return datasets.LCDataset(self.cfg.data, self.device, preprocessing=prep, use_labels=False)
+            return datasets.LCDataset(
+                self.cfg.data, directory, self.device, preprocessing=prep, use_labels=False
+            )
 
     def get_model(self):
         model_cls = getattr(models, self.cfg.model)
