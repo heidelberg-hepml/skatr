@@ -1,26 +1,21 @@
 run_name: fine_regression_micro_${net.arch}
 experiment: RegressionExperiment
 
-backbone: runs/pretraining_micro/2024-06-06_22-41-11 # best: ema + adam + norm + l2
-latent_dim: 128
+backbone: runs/pretraining_micro/2024-07-04_18-06-14
+latent_dim: 144
 
 training:
-  epochs: 100
+  lr: 1.e-3
+  epochs: 500
 
 net:
   units:
   - ${latent_dim}
-  - 256
-  - 256
+  - ${latent_dim}
   - 6
   out_act: sigmoid
-
-data:
-  dir: /scratch/ore/data/x5
-  file_by_file: False
   
 defaults:
-  - default
-  - preprocessing: xandy
-  - net: mlp
+  - regression_micro
+  - override net: mlp
   - _self_

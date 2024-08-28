@@ -1,9 +1,8 @@
 arch: ViT
 in_shape: [1, 140, 140, 2350]
 out_channels: 6
+
 patch_shape: [7, 7, 94]
-condition_dim: 46
-mask_frac: 0.
 hidden_dim: 256
 depth: 4
 num_heads: 4
@@ -13,4 +12,17 @@ proj_drop: 0.
 mlp_drop: 0.
 learn_pos_encoding: True
 out_act: sigmoid
+use_mask_token: True
 checkpoint_grads: False
+
+use_head: False
+head:
+  _target_: src.networks.MLP
+  cfg:
+    units:
+      - ${net.hidden_dim}
+      - ${net.hidden_dim}
+      - ${net.out_channels}
+    act: relu
+    out_act: ${net.out_act}
+    drop: ${net.mlp_drop}

@@ -1,0 +1,4 @@
+name: block
+spatial_aspect: [0.75, 1.5]
+spatial_frac: [0.3, 0.5]
+redshift_frac: [1, 1]

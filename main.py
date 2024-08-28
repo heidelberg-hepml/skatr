@@ -9,7 +9,7 @@ from src import experiments
 from src.utils.cluster import submit
 from src.utils.config import update_config_from_prev
 
-log = logging.getLogger(__name__)
+log = logging.getLogger('SKATR')
 
 @hydra.main(config_path='config', config_name='regression_mini', version_base=None)
 def main(cfg:DictConfig):

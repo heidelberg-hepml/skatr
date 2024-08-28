@@ -20,6 +20,7 @@ class Trainer:
             model:nn.Module,
             dataloaders:Dict[str, DataLoader],
             preprocessing:Dict[str, List[Callable]],
+            augmentations:List[Callable],
             cfg:DictConfig,
             exp_dir:str,
             device:str
@@ -39,6 +40,7 @@ class Trainer:
         self.device = device
         self.exp_dir = exp_dir
         self.preprocessing = preprocessing
+        self.augmentations = augmentations
         self.start_epoch = 0
         self.patience_counter = 0
 
@@ -57,13 +59,16 @@ class Trainer:
         if self.cfg.scheduler:
             self.scheduler = self.init_scheduler()
 
-        # init augmentations
-        self.augmentations = [
-            getattr(augmentations, name)(**kwargs)
-            for name, kwargs in self.cfg.augmentations.items()
-        ]
-        if augs := self.augmentations:
-            log.info(f"Loaded augmentations: {', '.join([a.__class__.__name__ for a in augs])}")
+        # # init augmentations
+        # self.augmentations = []
+        # if self.cfg.augment:
+        #     for name, kwargs in self.cfg.augmentations.items():
+        #         aug = getattr(augmentations, name)(**kwargs)
+        #         self.augmentations.append(aug)
+        #     log.info(
+        #         f"Loaded augmentations: "
+        #         f"{', '.join([a.__class__.__name__ for a in self.augmentations])}"
+        #     )
 
         # set logging of metrics
         if self.cfg.use_tensorboard:
@@ -160,11 +165,6 @@ class Trainer:
             # place batch on device
             batch = ensure_device(batch, self.device)
 
-            # preprocess
-            for i, fs in enumerate(self.preprocessing.values()):
-                for f in fs:
-                    batch[i] = f.forward(batch[i])
-
             # augment
             for augment in self.augmentations:
                 batch[0] = augment(batch[0])
@@ -211,12 +211,7 @@ class Trainer:
 
             # place x on device
             batch = ensure_device(batch, self.device)
-            
-            # preprocess
-            for i, fs in enumerate(self.preprocessing.values()):
-                for f in fs:
-                    batch[i] = f.forward(batch[i])
-
+            # calculate loss
             loss = self.model.batch_loss(batch).detach().cpu().numpy()
             val_losses.append(loss)
 

@@ -2,11 +2,11 @@ import random
 import torch
 
 class RotateAndReflect:
-    """Applies random rotation + reflection, avoiding double counting."""
+    """Random rotation + reflection, avoiding double counting."""
 
     def __init__(self, include_identity=False):
         """
-        :param include_identity: Whether or not to allow the identity as 
+        :param include_identity: Whether or not to allow the identity
         """
         
         # construct options
@@ -27,3 +27,24 @@ class RotateAndReflect:
             x = x.transpose(2, 3)
         
         return x
+    
+    def enumerate(self, x):
+        """
+        Returns a tuple containing all transformations of the input
+
+        :param x: A tensor containing a batch of lightcones.
+        """
+        
+        outs = []
+
+        # select from options
+        for ref_idx, rot_idx in self.idcs:
+
+            # apply transformations
+            x = torch.rot90(x, rot_idx, dims=[2,3])
+            if ref_idx:
+                x = x.transpose(2, 3)
+
+            outs.append(x)
+        
+        return outs

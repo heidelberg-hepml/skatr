@@ -1,0 +1,9 @@
+name: multiblock
+num_targets: 4
+spatial_aspect: [0.75, 1.5]
+short_num_blocks: 8
+short_spatial_frac: [0.1, 0.2]
+short_redshift_frac: 1
+long_num_blocks: 2
+long_spatial_frac: [0.6, 0.8]
+long_redshift_frac: 1

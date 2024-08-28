@@ -2,7 +2,7 @@ run_name: inference_micro
 experiment: InferenceExperiment
 
 dim: 6
-summary_dim: 128
+summary_dim: 144
 
 num_test_points: 250
 num_posterior_samples: 5000
@@ -11,10 +11,10 @@ sample_batch_size: 1000
 generative_model: INN
 inn:
   num_blocks: 6
-  layers_per_block: 1
+  layers_per_block: 2
   internal_size: 128
   spline_bound: 10
-  num_bins: 6
+  num_bins: 10
   permute_soft: True
   latent_space: gaussian
   dropout: 0.
@@ -27,13 +27,13 @@ data:
   file_by_file: False
 
 training:
-  epochs: 200
+  epochs: 500
   lr: 0.001
   batch_size: 64
   test_batch_size: ${num_test_points}
   optimizer:
     name: AdamW
-    kwargs: {weight_decay: 0.001}
+    kwargs: {}
 
 defaults:
   - default

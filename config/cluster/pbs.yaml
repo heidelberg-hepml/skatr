@@ -1,8 +1,9 @@
 scheduler: pbs
-queue: a30
+queue: h100
 procs: ${num_cpus}
 mem: 128gb
-# vmem: 90gb
+vmem: 75gb
 time: '40:0:0'
 num_gpus: 1
-node: gpu02
+node: 1
+dependency: null

@@ -1,9 +1,18 @@
 run_name: regression_mini_${net.arch}
 experiment: RegressionExperiment
 
+target_indices: [0,1,2,3,4,5]
+
 data:
   dir: /scratch/ore/data/x2
-  file_by_file: False
+  file_by_file: True
+
+net:
+  use_head: True
+  out_channels: 6 # length of target_indices
+
+training:
+  lr: 1.e-4
   
 defaults:
   - default

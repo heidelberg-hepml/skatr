@@ -10,7 +10,7 @@ from scipy.stats import special_ortho_group
 from typing import Callable, Iterable, Type, Union
 
 from src.models.base_model import Model
-from src.networks import ViT
+from src.networks import ViT, MLP
 
 class INN(Model):
     """
@@ -20,6 +20,9 @@ class INN(Model):
         super().__init__(cfg)
         self.cfg = cfg
         self.sum_net = self.bb if cfg.backbone else ViT(cfg.summary_net)
+        if cfg.use_extra_summary_mlp:
+            self.extra_mlp = MLP(cfg.extra_mlp)
+
         self.build_inn()
 
     def construct_subnet(self, x_in: int, x_out: int) -> nn.Module:
@@ -28,6 +31,14 @@ class INN(Model):
             internal_size=self.cfg.inn.internal_size, dropout=self.cfg.inn.dropout
         )
         return subnet
+    
+    def summarize(self, c):
+        c = self.sum_net(c)
+        if not hasattr(self.sum_net, 'head'):
+            c = c.mean(1) # (B, T, D) -> (B, D)
+        if self.cfg.use_extra_summary_mlp:
+            c = self.extra_mlp(c)
+        return c
 
     def build_inn(self):
         """
@@ -46,7 +57,6 @@ class INN(Model):
                 )
         block_kwargs = {
             "num_bins": self.cfg.inn.num_bins,
-            # "subnet_constructor": constructor_fct,
             "subnet_constructor": self.construct_subnet,
             "left": lower_bound,
             "right": upper_bound,
@@ -88,7 +98,9 @@ class INN(Model):
             log probabilities, shape (n_events, ) if not bayesian
                                shape (1+self.bayesian_samples, n_events) if bayesian
         """
-        z, jac = self.inn(x, (c,)) # TODO: summarize c first
+        if not (self.cfg.backbone and self.cfg.frozen_backbone):
+            c = self.summarize(c)
+        z, jac = self.inn(x, (c,))
         return self.latent_log_prob(z) + jac
 
     @torch.inference_mode()
@@ -108,7 +120,9 @@ class INN(Model):
         )
         z = latent_sampler((c.shape[0], self.cfg.dim), dtype=c.dtype, device=c.device)    
         
-        c = self.sum_net(c)
+        if not (self.cfg.backbone and self.cfg.frozen_backbone):
+            c = self.summarize(c)
+
         x, jac = self.inn(z, (c,), rev=True)
         log_prob = self.latent_log_prob(z) - jac
         return x.detach().cpu(), log_prob.detach().cpu()
@@ -145,7 +159,6 @@ class INN(Model):
             loss: batch loss
         """
         c, x = batch
-        c = self.sum_net(c)
         return -self.log_prob(x, c).mean() / self.cfg.dim
 
 

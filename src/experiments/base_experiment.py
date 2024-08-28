@@ -4,16 +4,24 @@ from abc import abstractmethod
 from hydra.utils import instantiate
 from torch.utils.data import DataLoader, random_split, Subset
 
+from src.utils import augmentations
+from src.utils.datasets import SummarizedLCDataset
 from src.utils.trainer import Trainer
 
 class BaseExperiment:
 
     def __init__(self, cfg, exp_dir):
+        
         self.cfg = cfg
-        self.device = f'cuda:{cfg.device}' if cfg.use_gpu else 'cpu'
         self.exp_dir = exp_dir
         self.log = logging.getLogger('Experiment')
         torch.set_default_dtype(getattr(torch, cfg.dtype))
+
+        self.device = (
+            f'cuda:{cfg.device}' if cfg.use_gpu and torch.cuda.is_available()
+            else f'mps:{cfg.device}' if cfg.use_gpu else 'cpu'
+        )
+        self.log.info(f'Using device {self.device}')
 
         self.preprocessing={ # initialize preprocessing transforms for data and targets
             k: [instantiate(t) for t in ts] for k, ts in self.cfg.preprocessing.items()
@@ -23,43 +31,55 @@ class BaseExperiment:
         }
         self.log.info(f'Loaded preprocessing dict: {transform_names}')
 
-        if cfg.data.sequential_splits: # partition splits either sequentially or randomly
-            self.split_func = lambda dataset, split_sizes: self.sequential_split(dataset, split_sizes)
-        else:
-            self.split_func = lambda dataset, split_sizes: random_split(dataset, split_sizes, generator=torch.Generator().manual_seed(1729))
-
     def run(self):
-
-        self.log.info('Reading data')
-        dataset = self.get_dataset() # TODO: Print the dataset signature/shape
-
-        self.log.info('Initializing dataloaders')
-        dataloaders = self.get_dataloaders(dataset)
-
-        self.log.info(f'Using device {self.device}')
+        
         self.log.info('Initializing model')
         if self.cfg.train or self.cfg.evaluate:
+            
             model = self.get_model().to(device=self.device)
-            # TODO: Implement option for memory format in trainer
+            self.model = model
             self.log.info(
                 f'Model ({model.__class__.__name__}[{model.net.__class__.__name__}]) has '
                 f'{sum(w.numel() for w in model.trainable_parameters)} trainable parameters'
             )
 
+        if self.cfg.train or self.cfg.evaluate:
+            
+            self.log.info('Reading and preprocessing data')
+            dataset = self.get_dataset(self.cfg.data.dir) # TODO: Print the dataset signature/shape
+
+            dataset_test = (
+                self.get_dataset(self.cfg.data.dir + '/test')
+                if self.cfg.data.use_test_dir else None
+            )
+
+            self.log.info('Initializing dataloaders')
+            dataloaders = self.get_dataloaders(dataset, dataset_test=dataset_test)
+
         if self.cfg.train:
-            self.log.info('Initializing trainer')
+            
+            tcfg = self.cfg.training
+
+            # init augmentations
+            augs = []
+            if tcfg.augment and not (self.cfg.backbone and self.cfg.frozen_backbone):
+                for name, kwargs in tcfg.augmentations.items():
+                    aug = getattr(augmentations, name)(**kwargs)
+                    augs.append(aug)
+                
+                self.log.info(
+                    f"Loaded augmentations: {', '.join([a.__class__.__name__ for a in augs])}"
+                )
+
+            self.log.info('Initializing trainer')                
             trainer = Trainer(
-                model, dataloaders, self.preprocessing, self.cfg.training, self.exp_dir, self.device
+                model, dataloaders, self.preprocessing, augs, tcfg, self.exp_dir, self.device
             )
             self.log.info('Running training')
             trainer.run_training()
-        # elif self.cfg.evaluate:
-        #     self.log.info(f'Loading model state from {self.cfg.prev_exp_dir}.')
-        #     model.load(self.exp_dir, self.device)
-        #     model.eval()
 
         if self.cfg.evaluate:
-            self.log.info(f'Loading model state from {self.cfg.prev_exp_dir}.')
+            self.log.info(f'Loading model state from {self.exp_dir}.')
             model.load(self.exp_dir, self.device)
             model.eval()
             self.log.info('Running evaluation')
@@ -69,37 +89,55 @@ class BaseExperiment:
             self.log.info('Making plots')
             self.plot()
     
-    def get_dataloaders(self, dataset):
-
-        assert sum(self.cfg.data.splits.values()) == 1.
+    def get_dataloaders(self, dataset, dataset_test=None):
         
-        # partition the dataset (using a seed to fix the test split)
-        trn = self.cfg.data.splits.train
-        val = self.cfg.data.splits.val
-        tst = self.cfg.data.splits.test
-        dataset_splits = dict(zip(
-            ('train', 'val', 'test'), random_split(
-                dataset, [trn, val, tst], generator=torch.Generator().manual_seed(1729)
-            )
-        ))
-        # trainval_set, test_set = random_split(
-        #     dataset, [trn + val, tst], generator=torch.Generator().manual_seed(1729)
-        # )
-        # train_set, val_set = random_split(trainval_set, [trn/(trn+val), val/(trn+val)])        
-        # dataset_splits = {'train': train_set, 'val': val_set, 'test': test_set}
-        del dataset#, trainval_set # TODO: Assess if this is really necessary
+        fixed_rng = torch.Generator().manual_seed(1729)
 
+        if dataset_test is None:
+            # partition the dataset using self.split_func
+            trn = self.cfg.data.splits.train
+            tst = self.cfg.data.splits.test
+            val = 1 - trn - tst
+            assert val > 0, 'A validation split is required'
+
+            dataset_splits = dict(zip(
+                ('train', 'val', 'test'),
+                random_split(dataset, [trn, val, tst], generator=fixed_rng)
+            ))
+        else:
+            trn = self.cfg.data.splits.train
+            val = 1 - trn 
+            assert val > 0, 'A validation split is required'
+            
+            dataset_train, dataset_val = random_split(
+                dataset, [trn, val], generator=fixed_rng
+            )
+            dataset_splits = {
+                'train': dataset_train, 'val': dataset_val, 'test': dataset_test
+            }
+
+        del dataset #TODO: Assess if this is really necessary
+        
         # create dataloaders
-        dataloaders = {
-            k: DataLoader(
-                d, shuffle=k=='train', drop_last=True, pin_memory=False, # pinning can cause memory issues with large lightcones
-                num_workers=0 if self.cfg.data.on_gpu else self.cfg.num_cpus, # parallel loading from GPU causes CUDA error
-                batch_size=(
-                    self.cfg.training.batch_size if k=='train'
-                    else self.cfg.training.test_batch_size
+        dataloaders = {}
+        num_cpus = 0 if self.cfg.data.on_gpu or self.cfg.frozen_backbone else self.cfg.num_cpus
+        for k, d in dataset_splits.items():
+            
+            # optionally summarize (compress) dataset
+            if self.cfg.backbone and self.cfg.frozen_backbone:
+                dataset_splits[k] = SummarizedLCDataset(
+                    d, summary_net=self.model.bb, device=self.device,
+                    augment=self.cfg.training.augment and k=='train' # only augment training split
                 )
-            ) for k, d in dataset_splits.items()
-        }
+
+            batch_size = (self.cfg.training.batch_size if k=='train'
+                          else self.cfg.training.test_batch_size)
+
+            dataloaders[k] = DataLoader(
+                dataset_splits[k], shuffle=k=='train', drop_last=k=='train', batch_size=batch_size,
+                pin_memory=False, # pinning can cause memory issues with large lightcones
+                num_workers=num_cpus # parallel loading from GPU causes CUDA error
+            )
 
         return dataloaders
     

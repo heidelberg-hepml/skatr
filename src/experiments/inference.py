@@ -5,22 +5,22 @@ import numpy as np
 import os
 import torch
 from getdist import plots, MCSamples
-from glob import glob
 from itertools import combinations
 from matplotlib.backends.backend_pdf import PdfPages
-from torch.utils.data import Dataset
 
 from src.experiments.base_experiment import BaseExperiment
 from src.models import ConditionalFlowMatcher, INN
+from src.utils import datasets
 from src.utils.plotting import PARAM_NAMES
 
 class InferenceExperiment(BaseExperiment):
     
-    def get_dataset(self):
+    def get_dataset(self, directory):
+        prep = self.preprocessing
         if self.cfg.data.file_by_file:
-            return InferenceDatasetByFile(self.cfg.data)
+            return datasets.LCDatasetByFile(self.cfg.data, directory, preprocessing=prep)
         else:
-            return InferenceDataset(self.cfg.data, self.device)
+            return datasets.LCDataset(self.cfg.data, directory, self.device, preprocessing=prep)
 
     def get_model(self):
         if self.cfg.generative_model == 'CFM':
@@ -129,21 +129,18 @@ class InferenceExperiment(BaseExperiment):
         
         # preprocess lightcones and parameters
         lc_batch = lc_batch[:self.cfg.num_test_points].to(self.device)
-        processed_params = params[:self.cfg.num_test_points].to(self.device)
-        for transform in self.preprocessing['x']:
-            lc_batch = transform.forward(lc_batch)
-        for transform in self.preprocessing['y']:
-            processed_params = transform.forward(processed_params)
+        params = params[:self.cfg.num_test_points].to(self.device)
 
         # evaluate test param likelihoods
-        param_logprobs = model.log_prob(processed_params, model.sum_net(lc_batch)).cpu()
+        param_logprobs = model.log_prob(params, lc_batch).cpu()
 
         # loop over test points
         for i in range(self.cfg.num_test_points):
             self.log.info(f'Sampling posterior for test point {i+1}')
             
             # select corresponding lightcone
-            lc = lc_batch[i].unsqueeze(0).repeat(self.cfg.sample_batch_size, 1, 1, 1, 1)
+            lc = lc_batch[i].unsqueeze(0)
+            lc = lc.repeat(self.cfg.sample_batch_size, *[1]*(lc.ndim-1))
 
             # sample posterior in batches
             sample_list, logprob_list = [], []
@@ -162,9 +159,11 @@ class InferenceExperiment(BaseExperiment):
         posterior_samples = torch.stack(posterior_samples)
         posterior_logprobs = torch.stack(posterior_logprobs)
         
-        # postprocess posterior samples
+        # postprocess
+        params = params.cpu()
         for transform in reversed(self.preprocessing['y']):
             posterior_samples = transform.reverse(posterior_samples)
+            params = transform.reverse(params)
 
         # collect true parameters
         target_indices = sorted(self.cfg.target_indices)
@@ -176,47 +175,8 @@ class InferenceExperiment(BaseExperiment):
         self.log.info(f'Saving parameter/posterior pairs as {savename}')
         np.savez(
             savepath,
-            params=params,
+            params=params.numpy(),
             param_logprobs=param_logprobs.numpy(),
             samples=posterior_samples.numpy(),
             sample_logprobs=posterior_logprobs.numpy()
         )
-
-class InferenceDatasetByFile(Dataset):
-
-    def __init__(self, cfg):
-        self.cfg = cfg
-        self.files = sorted(glob(f'{cfg.dir}/run*.npz'))
-
-    def __len__(self):
-        return len(self.files)
-
-    def __getitem__(self, idx):
-        
-        record = np.load(self.files[idx])
-        X = torch.from_numpy(record['image']).to(torch.get_default_dtype())
-        y = torch.from_numpy(record['label']).to(torch.get_default_dtype())
-
-        return X, y
-
-class InferenceDataset(Dataset):
-
-    def __init__(self, cfg, device):
-        self.files = sorted(glob(f'{cfg.dir}/run*.npz'))
-        self.Xs, self.ys = [], []
-        
-        for f in self.files:
-            record = np.load(f)
-            X = torch.from_numpy(record['image']).to(torch.get_default_dtype())
-            y = torch.from_numpy(record['label']).to(torch.get_default_dtype())
-            self.Xs.append(X)
-            self.ys.append(y)
-            if cfg.on_gpu:
-                X = X.to(device)
-                y = y.to(device)
-
-    def __len__(self):
-        return len(self.Xs)
-
-    def __getitem__(self, idx):
-        return self.Xs[idx], self.ys[idx]

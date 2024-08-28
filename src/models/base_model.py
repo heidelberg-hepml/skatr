@@ -62,7 +62,8 @@ class Model(nn.Module):
         }
         self.bb.load_state_dict(net_state)
         
-        # freeze weights and set to eval mode
-        for p in self.bb.parameters():
-            p.requires_grad = False
-        self.bb.eval()
+        if self.cfg.frozen_backbone:
+            # freeze weights and set to eval mode
+            for p in self.bb.parameters():
+                p.requires_grad = False
+            self.bb.eval()

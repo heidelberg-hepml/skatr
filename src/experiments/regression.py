@@ -2,22 +2,22 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 import torch
-from glob import glob
 from matplotlib import gridspec
 from matplotlib.backends.backend_pdf import PdfPages
-from torch.utils.data import Dataset
 
 from src.experiments.base_experiment import BaseExperiment
 from src.models import Regressor
+from src.utils import datasets
 from src.utils.plotting import PARAM_NAMES
 
 class RegressionExperiment(BaseExperiment):
     
-    def get_dataset(self):
+    def get_dataset(self, directory):
+        prep = self.preprocessing
         if self.cfg.data.file_by_file:
-            return RegressionDatasetByFile(self.cfg.data)
+            return datasets.LCDatasetByFile(self.cfg.data, directory, preprocessing=prep)
         else:
-            return RegressionDataset(self.cfg.data, self.device)
+            return datasets.LCDataset(self.cfg.data, directory, self.device, preprocessing=prep)
 
     def get_model(self):
         return Regressor(self.cfg)
@@ -92,7 +92,8 @@ class RegressionExperiment(BaseExperiment):
                 ratio_ax.semilogy()
 
                 # axis labels
-                main_ax.set_title(PARAM_NAMES[i], fontsize=14)
+                param_idx = self.cfg.target_indices[i]
+                main_ax.set_title(PARAM_NAMES[param_idx], fontsize=14)
                 main_ax.set_ylabel('Network', fontsize=13)
                 ratio_ax.set_ylabel(
                     r'$\left|\frac{\text{Net}\,-\,\text{True}}{\text{True}}\right|$', fontsize=10
@@ -127,22 +128,18 @@ class RegressionExperiment(BaseExperiment):
         labels, preds = [], []
         for x, y in dataloaders['test']:
 
-            labels.append(y.cpu().numpy())
-            
-            # preprocess input
-            x = x.to(self.device)
-            for transform in self.preprocessing['x']:
-                x = transform.forward(x)
-
             # predict
+            x = x.to(self.device)
             pred = model.predict(x).detach().cpu()
 
             # postprocess output
             for transform in reversed(self.preprocessing['y']):
                 pred = transform.reverse(pred)
+                y = transform.reverse(y)
             
             # append prediction
             preds.append(pred.numpy())
+            labels.append(y.cpu().numpy())
 
         # stack results
         labels = np.vstack(labels)
@@ -152,43 +149,3 @@ class RegressionExperiment(BaseExperiment):
         savepath = os.path.join(self.exp_dir, 'label_pred_pairs.npy')
         self.log.info(f'Saving label/prediction pairs to {savepath}')
         np.save(savepath, np.stack([labels, preds], axis=-1))
-
-
-class RegressionDatasetByFile(Dataset):
-
-    def __init__(self, cfg):
-        self.cfg = cfg
-        self.files = sorted(glob(f'{cfg.dir}/run*.npz'))
-
-    def __len__(self):
-        return len(self.files)
-
-    def __getitem__(self, idx):
-        
-        record = np.load(self.files[idx])
-        X = torch.from_numpy(record['image']).to(torch.get_default_dtype()) # TODO: Add option for `channels_last` memory format?
-        y = torch.from_numpy(record['label']).to(torch.get_default_dtype()) # TODO: Cast with numpy before
-
-        return X, y
-
-class RegressionDataset(Dataset):
-
-    def __init__(self, cfg, device):
-        self.files = sorted(glob(f'{cfg.dir}/run*.npz'))
-        self.Xs, self.ys = [], []
-        
-        for f in self.files:
-            record = np.load(f)
-            X = torch.from_numpy(record['image']).to(torch.get_default_dtype()) # TODO: Add option for `channels_last` memory format?
-            y = torch.from_numpy(record['label']).to(torch.get_default_dtype()) # TODO: Cast with numpy before
-            if cfg.on_gpu:
-                X = X.to(device)
-                y = y.to(device)
-            self.Xs.append(X)
-            self.ys.append(y)
-
-    def __len__(self):
-        return len(self.Xs)
-
-    def __getitem__(self, idx):
-        return self.Xs[idx], self.ys[idx]
