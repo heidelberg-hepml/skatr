@@ -109,9 +109,7 @@ class BaseExperiment:
             val = 1 - trn 
             assert val > 0, 'A validation split is required'
             
-            dataset_train, dataset_val = random_split(
-                dataset, [trn, val], generator=fixed_rng
-            )
+            dataset_train, dataset_val = random_split(dataset, [trn, val], generator=fixed_rng)
             dataset_splits = {
                 'train': dataset_train, 'val': dataset_val, 'test': dataset_test
             }

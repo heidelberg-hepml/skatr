@@ -8,6 +8,7 @@ from hydra.utils import instantiate
 from torch.utils.checkpoint import checkpoint
 
 from src.utils import masks
+from src.networks.cnn import ConvBlock
 
 class ViT(nn.Module):
     """
@@ -52,13 +53,23 @@ class ViT(nn.Module):
         # norm layer
         self.out_norm = nn.LayerNorm(dim, eps=1e-6)
 
-        # output head
-        if cfg.use_head:
-            self.head = instantiate(cfg.head)
+        # optionally initialize a task head or input conv
+        if cfg.use_head: self.init_head(cfg.head)
+        if cfg.use_conv: self.init_conv(cfg.conv)
 
         # masking
         if self.cfg.use_mask_token:
             self.mask_token = nn.Parameter(torch.randn(dim))
+
+    def init_head(self, cfg):
+        self.head = instantiate(cfg)
+
+    def init_conv(self, cfg):
+        ch = cfg.channels
+        self.conv = ConvBlock(
+            conv1 = nn.Conv3d( 1, ch, 3, 1, 1), conv2 = nn.Conv3d(ch, ch, 3, 1, 1),
+            pool  = nn.Conv3d(ch,  1, cfg.pool_kernel, cfg.pool_stride)
+        )
 
     def pos_encoding(self): # TODO: Simplify for fixed dim=3
         grids = [getattr(self, f'grid_{i}') for i in range(3)]
@@ -82,6 +93,9 @@ class ViT(nn.Module):
         :param mask: a tensor of patch indices that should be masked out of `x`.
         """
 
+        if hasattr(self, 'conv'):
+            x = self.conv(x)
+            
         # patchify input and embed
         x = self.to_patches(x) # (B, T, D), with T = prod(num_patches)
         x = self.embedding(x)
@@ -101,7 +115,7 @@ class ViT(nn.Module):
             x = block(x)
         x = self.out_norm(x)
 
-        if self.cfg.use_head:
+        if hasattr(self, 'head'):
             # aggregate patch features and apply task head
             x = torch.mean(x, axis=1) # (B, D)
             x = self.head(x) # (B, Z)
@@ -282,4 +296,13 @@ def check_shapes(cfg):
         assert not s % p, \
             f"Input size ({s}) should be divisible by patch size ({p}) in axis {i}."
     assert not cfg.hidden_dim % 6, \
-        f"Hidden dim should be divisible by 6 (for fourier position embeddings)"    
+        f"Hidden dim should be divisible by 6 (for fourier position embeddings)"
+    
+
+class InputConv(ConvBlock):
+
+    def __init__(self, pool_kernel, pool_stride, channels):
+        conv1 = nn.Conv3d(       1, channels, 3, 1, 1)
+        conv2 = nn.Conv3d(channels, channels, 3, 1, 1)
+        pool  = nn.Conv3d(channels,        1, pool_kernel, pool_stride)
+        super().__init__(conv1, conv2, pool)

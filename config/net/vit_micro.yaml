@@ -27,3 +27,9 @@ head:
     act: relu
     out_act: ${net.out_act}
     drop: ${net.mlp_drop}
+
+use_conv: False
+conv:
+  pool_kernel: 5
+  pool_stride: 5
+  channels: 32

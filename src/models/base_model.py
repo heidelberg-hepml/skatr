@@ -15,6 +15,10 @@ class Model(nn.Module):
         super().__init__()
         self.cfg = cfg
 
+        # net_cls = getattr(networks, cfg.net.arch)
+        # # TODO: Automatically set MLP input dim to backbone embedding dim
+        # self.net = net_cls(cfg.net)
+
         # optionally initialize a backbone
         if cfg.backbone:
             log.info('Loading pretrained backbone')
@@ -23,11 +27,13 @@ class Model(nn.Module):
                 f'Backbone ([{self.bb.__class__.__name__}]) has '
                 f'{sum(w.numel() for w in self.bb.parameters())} parameters'
             )
-        # initialize network
-        net_cls = getattr(networks, cfg.net.arch)
-        # TODO: Automatically set MLP input dim to backbone embedding dim
-        self.net = net_cls(cfg.net)
 
+        if not cfg.replace_backbone:
+            # initialize network
+            net_cls = getattr(networks, cfg.net.arch)
+            # TODO: Automatically set MLP input dim to backbone embedding dim
+            self.net = net_cls(cfg.net)
+        
     @property
     def trainable_parameters(self):
         return (p for p in self.parameters() if p.requires_grad)
@@ -49,17 +55,19 @@ class Model(nn.Module):
     def load_backbone(self):
         
         bb_dir = self.cfg.backbone
-        # read backbone config
-        bcfg = get_prev_config(bb_dir)
-        # initialize backbone net
-        bb_cls = getattr(networks, bcfg.net.arch)
-        self.bb = bb_cls(bcfg.net)
-        
-        # ... and load its state
+
+        # load backbone state
         model_state = torch.load(os.path.join(bb_dir, 'model.pt'))["model"]
         net_state = {
             k.replace('net.', ''): v for k,v in model_state.items() if k.startswith('net.')
         }
+        
+        # read backbone config
+        bcfg = get_prev_config(bb_dir)
+        
+        # initialize backbone net
+        bb_cls = getattr(networks, bcfg.net.arch)
+        self.bb = bb_cls(bcfg.net)
         self.bb.load_state_dict(net_state)
         
         if self.cfg.frozen_backbone:
@@ -67,3 +75,11 @@ class Model(nn.Module):
             for p in self.bb.parameters():
                 p.requires_grad = False
             self.bb.eval()
+
+        if self.cfg.replace_backbone:
+            
+            # init new head or conv if needed
+            if self.cfg.net.use_head: self.bb.init_head(self.cfg.net.head)
+            if self.cfg.net.use_conv: self.bb.init_conv(self.cfg.net.conv)
+            
+            self.net = self.bb
