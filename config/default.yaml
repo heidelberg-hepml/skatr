@@ -7,7 +7,7 @@ plot: True
 proj_dir: /remote/gpu02/ore/skatr
 dtype: float32
 use_gpu: True
-num_cpus: 2
+num_cpus: 1
 device: 0
 submit: False
 dry_run: False
