@@ -20,6 +20,7 @@ class ViT(nn.Module):
         super().__init__()
 
         self.cfg = cfg
+        self.patch_shape = cfg.patch_shape
         in_channels, *axis_sizes = cfg.in_shape
         dim = cfg.hidden_dim
 
@@ -27,8 +28,8 @@ class ViT(nn.Module):
         check_shapes(cfg)
         
         # embedding layer
-        patch_dim = math.prod(cfg.patch_shape) * in_channels
-        self.embedding = nn.Linear(patch_dim, dim)
+        self.patch_dim = math.prod(cfg.patch_shape) * in_channels
+        self.embedding = nn.Linear(self.patch_dim, dim)
 
         # position encoding
         fourier_dim = dim // 6 # sin/cos features for each dim
@@ -56,6 +57,7 @@ class ViT(nn.Module):
         # optionally initialize a task head or input conv
         if cfg.use_head: self.init_head(cfg.head)
         if cfg.use_conv: self.init_conv(cfg.conv)
+        if cfg.use_conv2: self.init_conv2(cfg.conv2)
 
         # masking
         if self.cfg.use_mask_token:
@@ -70,6 +72,27 @@ class ViT(nn.Module):
             conv1 = nn.Conv3d( 1, ch, 3, 1, 1), conv2 = nn.Conv3d(ch, ch, 3, 1, 1),
             pool  = nn.Conv3d(ch,  1, cfg.pool_kernel, cfg.pool_stride)
         )
+
+    def init_conv2(self, cfg):
+        self.conv2 = nn.Conv3d(
+            1,  cfg.channels, cfg.downsample_factor, cfg.downsample_factor
+        )
+        if cfg.replace_embedding:
+            self.embedding = nn.Linear(cfg.channels * self.patch_dim, self.cfg.hidden_dim)
+        else:
+            self.extra_proj = nn.Linear(cfg.channels * self.patch_dim, self.patch_dim)
+
+    # def init_patch_translate(self, new_patch_shape): # the Linear is too big
+    #     '''
+    #     WARNINGS:
+    #         - Assumes new patch shape results in the same number of patches
+    #         - Since `self.patch_shape` is overwritten, this should not be executed in the init
+    #     '''
+    #     self.patch_translate = nn.Linear(
+    #         math.prod(new_patch_shape),
+    #         math.prod(self.patch_shape)
+    #     )
+    #     self.patch_shape = new_patch_shape
 
     def pos_encoding(self): # TODO: Simplify for fixed dim=3
         grids = [getattr(self, f'grid_{i}') for i in range(3)]
@@ -89,15 +112,24 @@ class ViT(nn.Module):
     def forward(self, x, mask=None):
         """
         Forward pass of ViT.
-        :param x   : tensor of spatial inputs with shape (B, C, *axis_sizes)
+        :param x   : tensor of spatial inputs with shape (batch_size, channels, *axis_sizes)
         :param mask: a tensor of patch indices that should be masked out of `x`.
         """
 
         if hasattr(self, 'conv'):
             x = self.conv(x)
+        if hasattr(self, 'conv2'):
+            x = self.conv2(x)
+            x = F.relu(x) # helps?
             
-        # patchify input and embed
-        x = self.to_patches(x) # (B, T, D), with T = prod(num_patches)
+        # patchify input
+        # x -> (batch_size, number_of_patches, voxels_per_patch)
+        x = self.to_patches(x)
+        
+        # embed
+        # x -> (batch_size, number_of_patches, embedding_dim)
+        if hasattr(self, 'extra_proj'):
+            x = self.extra_proj(x)
         x = self.embedding(x)
 
         # apply mask and position encoding
@@ -106,6 +138,7 @@ class ViT(nn.Module):
                 x = self.apply_mask_tokens(x, mask)
             x = x + self.pos_encoding()
         else:
+            # x -> (batch_size, number_of_masked_patches, embedding_dim)
             x = x + self.pos_encoding()
             if mask is not None:
                 x = masks.gather_tokens(x, mask)
@@ -117,15 +150,16 @@ class ViT(nn.Module):
 
         if hasattr(self, 'head'):
             # aggregate patch features and apply task head
-            x = torch.mean(x, axis=1) # (B, D)
-            x = self.head(x) # (B, Z)
+            # x -> (batch_size, out_channels)
+            x = torch.mean(x, axis=1)
+            x = self.head(x)
 
         return x
 
     def to_patches(self, x):
         x = rearrange(
             x, 'b c (x p1) (y p2) (z p3) -> b (x y z) (p1 p2 p3 c)',
-            **dict(zip(('p1', 'p2', 'p3'), self.cfg.patch_shape))
+            **dict(zip(('p1', 'p2', 'p3'), self.patch_shape))
         )
         return x
 
