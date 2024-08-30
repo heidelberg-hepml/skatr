@@ -22,6 +22,7 @@ data:
   sequential_splits: False
   on_gpu: False
   file_by_file: True
+  summarize: $frozen_backbone
   use_test_dir: False
 
 training:
@@ -47,6 +48,7 @@ training:
   
 backbone: null
 frozen_backbone: True
+replace_backbone: False
 
 defaults:
   - cluster: pbs

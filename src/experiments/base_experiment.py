@@ -31,6 +31,10 @@ class BaseExperiment:
         }
         self.log.info(f'Loaded preprocessing dict: {transform_names}')
 
+        # warnings:
+        if cfg.data.summarize and not self.cfg.frozen_backbone:
+            self.log.warn(f'Asking to summarize dataset, but backbone is not frozen')
+
     def run(self):
         
         self.log.info('Initializing model')
@@ -62,7 +66,7 @@ class BaseExperiment:
 
             # init augmentations
             augs = []
-            if tcfg.augment and not (self.cfg.backbone and self.cfg.frozen_backbone):
+            if tcfg.augment and not self.cfg.data.summarize:
                 for name, kwargs in tcfg.augmentations.items():
                     aug = getattr(augmentations, name)(**kwargs)
                     augs.append(aug)
@@ -92,10 +96,11 @@ class BaseExperiment:
     def get_dataloaders(self, dataset, dataset_test=None):
         
         fixed_rng = torch.Generator().manual_seed(1729)
+        trn = self.cfg.data.splits.train
 
         if dataset_test is None:
             # partition the dataset using self.split_func
-            trn = self.cfg.data.splits.train
+            
             tst = self.cfg.data.splits.test
             val = 1 - trn - tst
             assert val > 0, 'A validation split is required'
@@ -105,13 +110,10 @@ class BaseExperiment:
                 random_split(dataset, [trn, val, tst], generator=fixed_rng)
             ))
         else:
-            trn = self.cfg.data.splits.train
             val = 1 - trn 
             assert val > 0, 'A validation split is required'
             
-            dataset_train, dataset_val = random_split(
-                dataset, [trn, val], generator=fixed_rng
-            )
+            dataset_train, dataset_val = random_split(dataset, [trn, val], generator=fixed_rng)
             dataset_splits = {
                 'train': dataset_train, 'val': dataset_val, 'test': dataset_test
             }
@@ -120,11 +122,12 @@ class BaseExperiment:
         
         # create dataloaders
         dataloaders = {}
-        num_cpus = 0 if self.cfg.data.on_gpu or self.cfg.frozen_backbone else self.cfg.num_cpus
+        num_cpus = 0 if self.cfg.data.on_gpu or self.cfg.data.summarize else self.cfg.num_cpus
+        self.log.info(f'{num_cpus=}')
         for k, d in dataset_splits.items():
             
             # optionally summarize (compress) dataset
-            if self.cfg.backbone and self.cfg.frozen_backbone:
+            if self.cfg.backbone and self.cfg.data.summarize:
                 dataset_splits[k] = SummarizedLCDataset(
                     d, summary_net=self.model.bb, device=self.device,
                     augment=self.cfg.training.augment and k=='train' # only augment training split

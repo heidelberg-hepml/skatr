@@ -98,11 +98,11 @@ class SummarizedLCDataset(Dataset):
                     self.Xs.append(self.summarize(x))
                     self.ys.append(y)
 
+    @torch.no_grad()
     def summarize(self, x):
-        with torch.no_grad():
-            x = self.summary_net(x).squeeze(0)
-            if not hasattr(self.summary_net, 'head'):
-                x = x.mean(0) # (T, D) --> (D,)
+        x = self.summary_net(x).squeeze(0)
+        if not hasattr(self.summary_net, 'head'):
+            x = x.mean(0) # (T, D) --> (D,)
         return x
 
     def __len__(self):

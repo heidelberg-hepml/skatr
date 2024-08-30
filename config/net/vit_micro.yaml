@@ -3,7 +3,6 @@ in_shape: [1, 28, 28, 470]
 out_channels: 6
 # patch_shape: [7, 7, 47] # 10 x 10 x 25 = 2500 tokens with 7x7x47 = 2300 voxels
 patch_shape: [4, 4, 10] # 7 x 7 x 47 = 2303 tokens with 4*4*10 = 160 voxels
-mask_frac: 0.
 hidden_dim: 144
 depth: 4
 num_heads: 4
@@ -27,3 +26,14 @@ head:
     act: relu
     out_act: ${net.out_act}
     drop: ${net.mlp_drop}
+
+use_conv: False
+conv:
+  pool_kernel: 5
+  pool_stride: 5
+  channels: 1
+use_conv2: False
+conv2:
+  channels: 4
+  downsample_factor: 5
+  replace_embedding: False

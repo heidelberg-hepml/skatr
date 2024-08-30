@@ -98,7 +98,7 @@ class INN(Model):
             log probabilities, shape (n_events, ) if not bayesian
                                shape (1+self.bayesian_samples, n_events) if bayesian
         """
-        if not (self.cfg.backbone and self.cfg.frozen_backbone):
+        if not self.cfg.data.summarize:
             c = self.summarize(c)
         z, jac = self.inn(x, (c,))
         return self.latent_log_prob(z) + jac
@@ -120,7 +120,7 @@ class INN(Model):
         )
         z = latent_sampler((c.shape[0], self.cfg.dim), dtype=c.dtype, device=c.device)    
         
-        if not (self.cfg.backbone and self.cfg.frozen_backbone):
+        if not self.cfg.data.summarize:
             c = self.summarize(c)
 
         x, jac = self.inn(z, (c,), rev=True)

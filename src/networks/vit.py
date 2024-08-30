@@ -19,6 +19,7 @@ class ViT(nn.Module):
         super().__init__()
 
         self.cfg = cfg
+        self.patch_shape = cfg.patch_shape
         in_channels, *axis_sizes = cfg.in_shape
         dim = cfg.hidden_dim
 
@@ -26,8 +27,8 @@ class ViT(nn.Module):
         check_shapes(cfg)
         
         # embedding layer
-        patch_dim = math.prod(cfg.patch_shape) * in_channels
-        self.embedding = nn.Linear(patch_dim, dim)
+        self.patch_dim = math.prod(cfg.patch_shape) * in_channels
+        self.embedding = nn.Linear(self.patch_dim, dim)
 
         # position encoding
         fourier_dim = dim // 6 # sin/cos features for each dim
@@ -52,13 +53,25 @@ class ViT(nn.Module):
         # norm layer
         self.out_norm = nn.LayerNorm(dim, eps=1e-6)
 
-        # output head
+        # optionally initialize a task head, input pooling, or mask token
         if cfg.use_head:
-            self.head = instantiate(cfg.head)
-
-        # masking
+            self.init_head(cfg.head)
+        if cfg.adapt_res:
+            self.init_adaptor(cfg.adaptor)
         if self.cfg.use_mask_token:
             self.mask_token = nn.Parameter(torch.randn(dim))
+
+    def init_head(self, cfg):
+        self.head = instantiate(cfg)
+
+    def init_adaptor(self, channels, downsample_factor, replace_embedding):
+        self.adaptor = nn.Sequential(
+            nn.Conv3d(1,  channels, downsample_factor, downsample_factor), nn.ReLU()
+        )
+        if replace_embedding:
+            self.embedding = nn.Linear(channels * self.patch_dim, self.cfg.hidden_dim)
+        else:
+            self.extra_proj = nn.Linear(channels * self.patch_dim, self.patch_dim)
 
     def pos_encoding(self): # TODO: Simplify for fixed dim=3
         grids = [getattr(self, f'grid_{i}') for i in range(3)]
@@ -78,12 +91,23 @@ class ViT(nn.Module):
     def forward(self, x, mask=None):
         """
         Forward pass of ViT.
-        :param x   : tensor of spatial inputs with shape (B, C, *axis_sizes)
+        :param x   : tensor of spatial inputs with shape (batch_size, channels, *axis_sizes)
         :param mask: a tensor of patch indices that should be masked out of `x`.
         """
 
-        # patchify input and embed
-        x = self.to_patches(x) # (B, T, D), with T = prod(num_patches)
+        if hasattr(self, 'conv'):
+            x = self.conv(x)
+        if hasattr(self, 'adaptor'):
+            x = self.adaptor(x)
+            
+        # patchify input
+        # x -> (batch_size, number_of_patches, voxels_per_patch)
+        x = self.to_patches(x)
+        
+        # embed
+        # x -> (batch_size, number_of_patches, embedding_dim)
+        if hasattr(self, 'extra_proj'):
+            x = self.extra_proj(x)
         x = self.embedding(x)
 
         # apply mask and position encoding
@@ -92,6 +116,7 @@ class ViT(nn.Module):
                 x = self.apply_mask_tokens(x, mask)
             x = x + self.pos_encoding()
         else:
+            # x -> (batch_size, number_of_masked_patches, embedding_dim)
             x = x + self.pos_encoding()
             if mask is not None:
                 x = masks.gather_tokens(x, mask)
@@ -101,17 +126,18 @@ class ViT(nn.Module):
             x = block(x)
         x = self.out_norm(x)
 
-        if self.cfg.use_head:
+        if hasattr(self, 'head'):
             # aggregate patch features and apply task head
-            x = torch.mean(x, axis=1) # (B, D)
-            x = self.head(x) # (B, Z)
+            # x -> (batch_size, out_channels)
+            x = torch.mean(x, axis=1)
+            x = self.head(x)
 
         return x
 
     def to_patches(self, x):
         x = rearrange(
             x, 'b c (x p1) (y p2) (z p3) -> b (x y z) (p1 p2 p3 c)',
-            **dict(zip(('p1', 'p2', 'p3'), self.cfg.patch_shape))
+            **dict(zip(('p1', 'p2', 'p3'), self.patch_shape))
         )
         return x
 
@@ -126,7 +152,9 @@ class ViT(nn.Module):
         full_mask_token = repeat(self.mask_token, 'd -> b t d', b=B, t=T)
         # construct boolean mask
         mask = torch.zeros((B, T), device=x.device).scatter_(-1, mask_idcs, 1).bool()
-        return torch.where(mask[..., None], full_mask_token, x)        
+        return torch.where(mask[..., None], full_mask_token, x)
+
+
 
 class PredictorViT(ViT):
 
@@ -282,4 +310,4 @@ def check_shapes(cfg):
         assert not s % p, \
             f"Input size ({s}) should be divisible by patch size ({p}) in axis {i}."
     assert not cfg.hidden_dim % 6, \
-        f"Hidden dim should be divisible by 6 (for fourier position embeddings)"    
+        f"Hidden dim should be divisible by 6 (for fourier position embeddings)"

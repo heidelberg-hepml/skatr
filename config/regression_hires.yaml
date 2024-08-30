@@ -1,0 +1,32 @@
+run_name: regression_hires_${net.arch}
+experiment: RegressionExperiment
+
+target_indices: [0,1,2,3,4,5]
+loss: l1
+
+num_cpus: 4
+
+data:
+  dir: /remote/gpu01a/heneka/21cmlightcones/pure_simulations
+  file_by_file: True
+  summarize: False
+
+backbone: runs/pretraining_micro/2024-07-23_15-01-12
+replace_backbone: True
+
+net:
+  out_channels: 6 # length of target_indices
+  use_head: True
+  use_conv: False # remove
+  use_conv2: True
+
+training:
+  epochs: 250
+  lr: 1.e-4
+  test_batch_size: ${training.batch_size}
+
+defaults:
+  - default
+  - preprocessing: xandy  
+  - net: vit_micro
+  - _self_
