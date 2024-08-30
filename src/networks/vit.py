@@ -8,7 +8,6 @@ from hydra.utils import instantiate
 from torch.utils.checkpoint import checkpoint
 
 from src.utils import masks
-from src.networks.cnn import ConvBlock
 
 class ViT(nn.Module):
     """
@@ -54,45 +53,25 @@ class ViT(nn.Module):
         # norm layer
         self.out_norm = nn.LayerNorm(dim, eps=1e-6)
 
-        # optionally initialize a task head or input conv
-        if cfg.use_head: self.init_head(cfg.head)
-        if cfg.use_conv: self.init_conv(cfg.conv)
-        if cfg.use_conv2: self.init_conv2(cfg.conv2)
-
-        # masking
+        # optionally initialize a task head, input pooling, or mask token
+        if cfg.use_head:
+            self.init_head(cfg.head)
+        if cfg.adapt_res:
+            self.init_adaptor(cfg.adaptor)
         if self.cfg.use_mask_token:
             self.mask_token = nn.Parameter(torch.randn(dim))
 
     def init_head(self, cfg):
         self.head = instantiate(cfg)
 
-    def init_conv(self, cfg):
-        ch = cfg.channels
-        self.conv = ConvBlock(
-            conv1 = nn.Conv3d( 1, ch, 3, 1, 1), conv2 = nn.Conv3d(ch, ch, 3, 1, 1),
-            pool  = nn.Conv3d(ch,  1, cfg.pool_kernel, cfg.pool_stride)
+    def init_adaptor(self, channels, downsample_factor, replace_embedding):
+        self.adaptor = nn.Sequential(
+            nn.Conv3d(1,  channels, downsample_factor, downsample_factor), nn.ReLU()
         )
-
-    def init_conv2(self, cfg):
-        self.conv2 = nn.Conv3d(
-            1,  cfg.channels, cfg.downsample_factor, cfg.downsample_factor
-        )
-        if cfg.replace_embedding:
-            self.embedding = nn.Linear(cfg.channels * self.patch_dim, self.cfg.hidden_dim)
+        if replace_embedding:
+            self.embedding = nn.Linear(channels * self.patch_dim, self.cfg.hidden_dim)
         else:
-            self.extra_proj = nn.Linear(cfg.channels * self.patch_dim, self.patch_dim)
-
-    # def init_patch_translate(self, new_patch_shape): # the Linear is too big
-    #     '''
-    #     WARNINGS:
-    #         - Assumes new patch shape results in the same number of patches
-    #         - Since `self.patch_shape` is overwritten, this should not be executed in the init
-    #     '''
-    #     self.patch_translate = nn.Linear(
-    #         math.prod(new_patch_shape),
-    #         math.prod(self.patch_shape)
-    #     )
-    #     self.patch_shape = new_patch_shape
+            self.extra_proj = nn.Linear(channels * self.patch_dim, self.patch_dim)
 
     def pos_encoding(self): # TODO: Simplify for fixed dim=3
         grids = [getattr(self, f'grid_{i}') for i in range(3)]
@@ -118,9 +97,8 @@ class ViT(nn.Module):
 
         if hasattr(self, 'conv'):
             x = self.conv(x)
-        if hasattr(self, 'conv2'):
-            x = self.conv2(x)
-            x = F.relu(x) # helps?
+        if hasattr(self, 'adaptor'):
+            x = self.adaptor(x)
             
         # patchify input
         # x -> (batch_size, number_of_patches, voxels_per_patch)
@@ -174,7 +152,9 @@ class ViT(nn.Module):
         full_mask_token = repeat(self.mask_token, 'd -> b t d', b=B, t=T)
         # construct boolean mask
         mask = torch.zeros((B, T), device=x.device).scatter_(-1, mask_idcs, 1).bool()
-        return torch.where(mask[..., None], full_mask_token, x)        
+        return torch.where(mask[..., None], full_mask_token, x)
+
+
 
 class PredictorViT(ViT):
 
@@ -331,12 +311,3 @@ def check_shapes(cfg):
             f"Input size ({s}) should be divisible by patch size ({p}) in axis {i}."
     assert not cfg.hidden_dim % 6, \
         f"Hidden dim should be divisible by 6 (for fourier position embeddings)"
-    
-
-class InputConv(ConvBlock):
-
-    def __init__(self, pool_kernel, pool_stride, channels):
-        conv1 = nn.Conv3d(       1, channels, 3, 1, 1)
-        conv2 = nn.Conv3d(channels, channels, 3, 1, 1)
-        pool  = nn.Conv3d(channels,        1, pool_kernel, pool_stride)
-        super().__init__(conv1, conv2, pool)

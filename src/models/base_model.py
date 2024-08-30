@@ -78,11 +78,8 @@ class Model(nn.Module):
 
         if self.cfg.replace_backbone:
             
-            # init new head or conv if needed
+            # init new head or input adaption if needed
             if self.cfg.net.use_head: self.bb.init_head(self.cfg.net.head)
-            if self.cfg.net.use_conv: self.bb.init_conv(self.cfg.net.conv)
-            if self.cfg.net.use_conv2: self.bb.init_conv2(self.cfg.net.conv2)
-            if self.cfg.net.patch_shape != bcfg.net.patch_shape:
-                self.bb.init_patch_translate(self.cfg.net.patch_shape)
+            if self.cfg.net.adapt_res: self.bb.init_adaptor(self.cfg.net.adaptor)
             
             self.net = self.bb
