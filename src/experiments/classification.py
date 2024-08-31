@@ -75,10 +75,6 @@ class ClassificationExperiment(BaseExperiment):
 
             labels.append(y.numpy())
             
-            # preprocess input
-            x = x.to(self.device)
-            for transform in self.preprocessing['x']:
-                x = transform.forward(x)
 
             # predict
             pred = model.predict(x).detach().cpu()
@@ -88,6 +84,10 @@ class ClassificationExperiment(BaseExperiment):
 
         # stack results
         labels = np.vstack(labels)
+        # preprocess input
+        for transform in self.preprocessing['y']:
+            labels = transform.reverse(labels)
+
         preds = np.vstack(preds)
         
         # save results

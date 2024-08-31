@@ -3,6 +3,7 @@ experiment: InferenceExperiment
 
 dim: 6
 summary_dim: 144
+target_indices: [0,1,2,3,4,5]
 
 num_test_points: 250
 num_posterior_samples: 5000
@@ -22,6 +23,16 @@ inn:
 summary_net:
   out_channels: ${summary_dim}
 
+use_extra_summary_mlp: False
+extra_mlp:
+  units:
+    - ${summary_dim}
+    - ${summary_dim}
+    - ${summary_dim}
+  act: relu
+  out_act: null
+  drop: 0.
+
 data:
   dir: /scratch/ore/data/x5
   file_by_file: False
@@ -34,6 +45,9 @@ training:
   optimizer:
     name: AdamW
     kwargs: {}
+  # scheduler:
+  #   name: OneCycleLR
+  #   kwargs: {max_lr: 1.e-3}
 
 defaults:
   - default
