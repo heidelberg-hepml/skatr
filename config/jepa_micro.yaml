@@ -30,7 +30,7 @@ data:
   file_by_file: False
 
 training:
-  epochs: 50
+  epochs: 1000
   lr: 0.001
   batch_size: 64
   optimizer:

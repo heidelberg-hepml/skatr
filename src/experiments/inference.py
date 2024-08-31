@@ -26,7 +26,7 @@ class InferenceExperiment(BaseExperiment):
         if self.cfg.generative_model == 'CFM':
             return ConditionalFlowMatcher(self.cfg)
         elif self.cfg.generative_model == 'INN':
-            return INN(self.cfg)        
+            return INN(self.cfg)
     
     def plot(self):
         """Adapted from https://github.com/heidelberg-hepml/21cm-cINN/blob/main/Plotting.py"""

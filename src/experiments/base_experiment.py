@@ -50,6 +50,7 @@ class BaseExperiment:
         if self.cfg.train or self.cfg.evaluate:
             
             self.log.info('Reading and preprocessing data')
+            # TODO: combine with `get_dataloaders`
             dataset = self.get_dataset(self.cfg.data.dir) # TODO: Print the dataset signature/shape
 
             dataset_test = (
@@ -64,7 +65,7 @@ class BaseExperiment:
             
             tcfg = self.cfg.training
 
-            # init augmentations
+            # init augmentations # TODO: move to separate method
             augs = []
             if tcfg.augment and not self.cfg.data.summarize:
                 for name, kwargs in tcfg.augmentations.items():
