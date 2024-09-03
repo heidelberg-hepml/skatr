@@ -7,6 +7,11 @@ backbone: runs/pretraining_micro/2024-07-23_15-01-12
 latent_dim: 144
 adapt_res: True
 
+num_cpus: 4
+
+data:
+  summarize: True
+  summary_batch_size: 5
 
 training:
   lr: 5.e-4

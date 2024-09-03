@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 from glob import glob
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, DataLoader
 
 from src.utils.augmentations import RotateAndReflect
 
@@ -79,7 +79,9 @@ class LCDatasetByFile(Dataset):
 
 class SummarizedLCDataset(Dataset):
 
-    def __init__(self, dataset, summary_net, device, augment=False):
+    def __init__(
+        self, dataset, summary_net, device, augment=False, summary_batch_size=32, num_cpus=0
+        ):
         
         self.Xs = []
         self.ys = []
@@ -88,9 +90,12 @@ class SummarizedLCDataset(Dataset):
         if augment:
             aug = RotateAndReflect()
 
-        for X, y in dataset:
+        dataloader = DataLoader(
+            dataset, batch_size=summary_batch_size, num_workers=num_cpus if num_cpus > 1 else 0
+        )
+        for X, y in dataloader:
             
-            X = X.to(device).unsqueeze(0)
+            X = X.to(device)
             self.Xs.append(self.summarize(X))
             self.ys.append(y)
             if augment:
@@ -98,11 +103,14 @@ class SummarizedLCDataset(Dataset):
                     self.Xs.append(self.summarize(x))
                     self.ys.append(y)
 
+        self.Xs = torch.vstack(self.Xs)
+        self.ys = torch.vstack(self.ys)
+
     @torch.no_grad()
     def summarize(self, x):
-        x = self.summary_net(x).squeeze(0)
+        x = self.summary_net(x)
         if not hasattr(self.summary_net, 'head'):
-            x = x.mean(0) # (T, D) --> (D,)
+            x = x.mean(1) # (B, T, D) --> (B, D)
         return x
 
     def __len__(self):

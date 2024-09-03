@@ -1,0 +1,52 @@
+run_name: pretraining_upsample
+experiment: PretrainingExperiment
+evaluate: False
+plot: False
+
+model: JEPA
+ema_momentum: 0.9997
+momentum_schedule: False
+sim: l1
+augment: False
+init_tgt_as_ctx: False
+
+net: # encoders
+  use_mask_token: False
+  use_head: False
+  hidden_dim: 144
+  learn_pos_encoding: False
+  depth: 4
+
+predictor:
+  use_head: False
+  hidden_dim: 48
+  depth: 4
+  learn_pos_encoding: False
+  in_dim: ${net.hidden_dim}
+  in_shape: ${net.in_shape}
+  patch_shape: ${net.patch_shape}
+
+data:
+  dir: /scratch/nordmann/data_new/x5
+  use_test_dir: True
+  file_by_file: False
+
+training:
+  epochs: 1000
+  lr: 0.001
+  batch_size: 64
+  test_batch_size: ${training.batch_size}
+  optimizer:
+    name: AdamW
+    kwargs: {}
+
+masking:
+  num_targets: 2
+  
+defaults:
+  - default
+  - masking: multiblock
+  - net: vit
+  - net@predictor: vit
+  - preprocessing: xonly_upsample
+  - _self_

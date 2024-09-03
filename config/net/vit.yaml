@@ -26,3 +26,9 @@ head:
     act: relu
     out_act: ${net.out_act}
     drop: ${net.mlp_drop}
+
+adapt_res: False
+adaptor:
+  channels: 4
+  downsample_factor: 5
+  replace_embedding: False    

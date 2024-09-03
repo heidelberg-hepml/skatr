@@ -49,32 +49,17 @@ class BaseExperiment:
 
         if self.cfg.train or self.cfg.evaluate:
             
-            self.log.info('Reading and preprocessing data')
-            # TODO: combine with `get_dataloaders`
-            dataset = self.get_dataset(self.cfg.data.dir) # TODO: Print the dataset signature/shape
-
-            dataset_test = (
-                self.get_dataset(self.cfg.data.dir + '/test')
-                if self.cfg.data.use_test_dir else None
-            )
-
             self.log.info('Initializing dataloaders')
-            dataloaders = self.get_dataloaders(dataset, dataset_test=dataset_test)
+            dataloaders = self.get_dataloaders()#dataset, dataset_test=dataset_test)
 
         if self.cfg.train:
             
             tcfg = self.cfg.training
 
-            # init augmentations # TODO: move to separate method
-            augs = []
-            if tcfg.augment and not self.cfg.data.summarize:
-                for name, kwargs in tcfg.augmentations.items():
-                    aug = getattr(augmentations, name)(**kwargs)
-                    augs.append(aug)
-                
-                self.log.info(
-                    f"Loaded augmentations: {', '.join([a.__class__.__name__ for a in augs])}"
-                )
+            augs = self.get_augmentations()
+            self.log.info(
+                f"Loaded augmentations: {', '.join([a.__class__.__name__ for a in augs])}"
+            )
 
             self.log.info('Initializing trainer')                
             trainer = Trainer(
@@ -94,15 +79,25 @@ class BaseExperiment:
             self.log.info('Making plots')
             self.plot()
     
-    def get_dataloaders(self, dataset, dataset_test=None):
+    def get_dataloaders(self):
         
+        dcfg = self.cfg.data
         fixed_rng = torch.Generator().manual_seed(1729)
-        trn = self.cfg.data.splits.train
+        
+        # read data
+        dataset = self.get_dataset(dcfg.dir)
+        dataset_test = (self.get_dataset(dcfg.dir + '/test') if dcfg.use_test_dir else None)
 
+        shape_strings = [
+            f'({len(dataset)}, {repr(tuple(x.shape))[1:].replace(',)', ')')}'
+            for x in dataset[0]
+        ]
+        self.log.info(f"Read data with shapes {', '.join(shape_strings)}")
+        
+        # partition the dataset into train/val/test
+        trn = dcfg.splits.train
         if dataset_test is None:
-            # partition the dataset using self.split_func
-            
-            tst = self.cfg.data.splits.test
+            tst = dcfg.splits.test
             val = 1 - trn - tst
             assert val > 0, 'A validation split is required'
 
@@ -123,14 +118,15 @@ class BaseExperiment:
         
         # create dataloaders
         dataloaders = {}
-        num_cpus = 0 if self.cfg.data.on_gpu or self.cfg.data.summarize else self.cfg.num_cpus
+        num_cpus = 0 if dcfg.on_gpu or dcfg.summarize else self.cfg.num_cpus
         self.log.info(f'{num_cpus=}')
         for k, d in dataset_splits.items():
             
             # optionally summarize (compress) dataset
-            if self.cfg.backbone and self.cfg.data.summarize:
+            if self.cfg.backbone and dcfg.summarize:
                 dataset_splits[k] = SummarizedLCDataset(
                     d, summary_net=self.model.bb, device=self.device,
+                    summary_batch_size=dcfg.summary_batch_size, num_cpus=self.cfg.num_cpus,
                     augment=self.cfg.training.augment and k=='train' # only augment training split
                 )
 
@@ -144,6 +140,14 @@ class BaseExperiment:
             )
 
         return dataloaders
+    
+    def get_augmentations(self):
+        augs = []
+        if self.cfg.training.augment and not self.cfg.data.summarize:
+            for name, kwargs in self.cfg.training.augmentations.items():
+                aug = getattr(augmentations, name)(**kwargs)
+                augs.append(aug)
+        return augs
     
     @abstractmethod
     def get_dataset(self):

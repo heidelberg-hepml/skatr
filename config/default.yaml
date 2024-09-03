@@ -12,6 +12,8 @@ device: 0
 submit: False
 dry_run: False
 
+adapt_res: False # TODO: Depracate
+
 prev_exp_dir: null
 
 data:
@@ -22,8 +24,9 @@ data:
   sequential_splits: False
   on_gpu: False
   file_by_file: True
-  summarize: $frozen_backbone
   use_test_dir: False
+  summarize: $frozen_backbone
+  summary_batch_size: 32
 
 training:
   epochs: 1

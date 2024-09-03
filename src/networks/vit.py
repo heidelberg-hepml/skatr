@@ -58,20 +58,23 @@ class ViT(nn.Module):
 
         # optionally initialize a task head, input pooling, or mask token
         if cfg.use_head:
-            self.head = instantiate(cfg.head)
+            self.init_head(cfg.head)
         if cfg.adapt_res:
             self.init_adaptor(cfg.adaptor)
         if self.cfg.use_mask_token:
             self.mask_token = nn.Parameter(torch.randn(dim))
 
-    def init_adaptor(self, channels, downsample_factor, replace_embedding):
+    def init_head(self, cfg):
+        self.head = instantiate(cfg)
+
+    def init_adaptor(self, cfg):
         self.adaptor = nn.Sequential(
-            nn.Conv3d(1,  channels, downsample_factor, downsample_factor), nn.ReLU()
+            nn.Conv3d(1,  cfg.channels, cfg.downsample_factor, cfg.downsample_factor), nn.ReLU()
         )
-        if replace_embedding:
-            self.embedding = nn.Linear(channels * self.patch_dim, self.cfg.hidden_dim)
+        if cfg.replace_embedding:
+            self.embedding = nn.Linear(cfg.channels * self.patch_dim, self.cfg.hidden_dim)
         else:
-            self.extra_proj = nn.Linear(channels * self.patch_dim, self.patch_dim)
+            self.extra_proj = nn.Linear(cfg.channels * self.patch_dim, self.patch_dim)
 
     def init_pos_grid(self, axis_sizes):
         self.num_patches = [s // p for s, p in zip(axis_sizes, self.cfg.patch_shape)]

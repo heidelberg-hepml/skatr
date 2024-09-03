@@ -5,6 +5,7 @@ target_indices: [0,1,2,3,4,5]
 loss: l1
 
 data_shape: [140, 140, 2350]
+adapt_res: False
 
 data:
   dir: /remote/gpu01a/heneka/21cmlightcones/pure_simulations

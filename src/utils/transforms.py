@@ -39,3 +39,16 @@ class Clamp:
     
     def reverse(self, x):
         return x.abs().exp().add(-1)*x.sign()
+    
+class Upsample:
+    """TODO: Fill docstring"""
+
+    def __init__(self, factor):
+        self.upsampler = torch.nn.Upsample(scale_factor=factor)
+        self.downsampler = torch.nn.AvgPool3d(kernel_size=factor, stride=factor)
+    
+    def forward(self, x):
+        return self.upsampler(x.unsqueeze(0)).squeeze(0)
+    
+    def reverse(self, x):
+        return self.downsampler(x)

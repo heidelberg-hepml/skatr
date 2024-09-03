@@ -38,7 +38,7 @@ def submit_pbs(cfg, ccfg, hcfg, overrides, out_dir):
         cd {cfg.proj_dir}
         source setup.sh
         export CUDA_VISIBLE_DEVICES={device}
-        python main.py {' '.join(overrides)} -cn {hcfg.job.config_name}
+        python main.py -cn {hcfg.job.config_name} {' '.join(overrides)} 
         exit 0
         EOT
     """)
