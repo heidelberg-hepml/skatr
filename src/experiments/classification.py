@@ -60,14 +60,14 @@ class ClassificationExperiment(BaseExperiment):
         self.log.info(f'Saved plots to {savepath}')
     
     @torch.inference_mode()
-    def evaluate(self, dataloaders, model):
+    def evaluate(self, dataloaders):
         """
         Evaluates the Classifier on lightcones in the test dataset.
         Predictions are saved alongside truth labels
         """
         
         # disable batchnorm updates, dropout etc.
-        model.eval()
+        self.model.eval()
 
         # get truth targets and predictions across the test set
         labels, preds = [], []
@@ -77,7 +77,7 @@ class ClassificationExperiment(BaseExperiment):
             
 
             # predict
-            pred = model.predict(x).detach().cpu()
+            pred = self.model.predict(x).detach().cpu()
             
             # append prediction
             preds.append(pred.numpy())
@@ -118,25 +118,3 @@ class ClassificationDatasetByFile(Dataset):
         X = torch.from_numpy(record['image']).to(torch.get_default_dtype())
         y = torch.tensor([label]).to(torch.get_default_dtype())
         return X, y
-
-# class ClassificationDataset(Dataset):
-
-#     def __init__(self, cfg, device):
-#         self.files = sorted(glob(f'{cfg.dir}/run*.npz'))
-#         self.Xs, self.ys = [], []
-        
-#         for f in self.files:
-#             record = np.load(f)
-#             X = torch.from_numpy(record['image']).to(torch.get_default_dtype())
-#             y = torch.from_numpy(record['label']).to(torch.get_default_dtype())
-#             self.Xs.append(X)
-#             self.ys.append(y)
-#             if cfg.on_gpu:
-#                 X = X.to(device)
-#                 y = y.to(device)
-
-#     def __len__(self):
-#         return len(self.Xs)
-
-#     def __getitem__(self, idx):
-#         return self.Xs[idx], self.ys[idx]

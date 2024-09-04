@@ -13,9 +13,10 @@ class LCDataset(Dataset):
         self.files = sorted(glob(f'{directory}/run*.npz'))
         self.Xs, self.ys = [], []
 
-        dtype = torch.get_default_dtype()
+        # dtype = torch.get_default_dtype()
+        dtype = getattr(torch, cfg.dtype)
 
-        for f in self.files:
+        for f in self.files: # TODO: parallelize
             record = np.load(f)
 
             # read and preprocess

@@ -12,9 +12,9 @@ class AddSingletonChannel:
 class Center:
     """Shift and scale a tensor into the range [0,1] given min value `lo` and max value `hi`"""
 
-    def __init__(self, lo, hi, indices=None):
-        self.lo = torch.tensor(lo)
-        self.hi = torch.tensor(hi)
+    def __init__(self, lo, hi, indices=None, dtype=torch.float32):
+        self.lo = torch.tensor(lo, dtype=dtype)
+        self.hi = torch.tensor(hi, dtype=dtype)
         self.indices = indices
         if indices is not None:
             self.lo = self.lo[indices]

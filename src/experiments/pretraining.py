@@ -25,7 +25,7 @@ class PretrainingExperiment(BaseExperiment):
         raise NotImplementedError
     
     @torch.inference_mode()
-    def evaluate(self, dataloaders, model):
+    def evaluate(self, dataloaders):
         """Use the pretrained summary to compress the chosen dataset"""
 
         # free memory from current dataset

@@ -5,7 +5,6 @@ evaluate: True
 plot: True
 
 proj_dir: /remote/gpu02/ore/skatr
-dtype: float32
 use_gpu: True
 num_cpus: 2
 device: 0
@@ -22,6 +21,7 @@ data:
     train: 0.75
     test: 0.15
   sequential_splits: False
+  dtype: float32
   on_gpu: False
   file_by_file: True
   use_test_dir: False
@@ -37,6 +37,7 @@ training:
     name: AdamW
     kwargs: {weight_decay: 1.e-3}
   scheduler: {}
+  dtype: float32
   augment: True
   augmentations:
     RotateAndReflect: {include_identity: True}

@@ -15,15 +15,18 @@ class BaseExperiment:
         self.cfg = cfg
         self.exp_dir = exp_dir
         self.log = logging.getLogger('Experiment')
-        torch.set_default_dtype(getattr(torch, cfg.dtype))
-
-        self.device = (
+        
+        self.dtype_data = getattr(torch, cfg.data.dtype)
+        self.dtype_train = getattr(torch, cfg.training.dtype)
+        # self.dtype = torch.get_default_dtype()
+        self.device = torch.device(
             f'cuda:{cfg.device}' if cfg.use_gpu and torch.cuda.is_available()
             else f'mps:{cfg.device}' if cfg.use_gpu else 'cpu'
         )
         self.log.info(f'Using device {self.device}')
 
-        self.preprocessing={ # initialize preprocessing transforms for data and targets
+        # initialize preprocessing transforms (for data and targets)
+        self.preprocessing={
             k: [instantiate(t) for t in ts] for k, ts in self.cfg.preprocessing.items()
         }
         transform_names = {
@@ -40,17 +43,17 @@ class BaseExperiment:
         self.log.info('Initializing model')
         if self.cfg.train or self.cfg.evaluate:
             
-            model = self.get_model().to(device=self.device)
-            self.model = model
+            self.model = self.get_model().to(device=self.device, dtype=self.dtype_train)
+            
             self.log.info(
-                f'Model ({model.__class__.__name__}[{model.net.__class__.__name__}]) has '
-                f'{sum(w.numel() for w in model.trainable_parameters)} trainable parameters'
+                f'Model ({self.model.__class__.__name__}[{self.model.net.__class__.__name__}]) has '
+                f'{sum(w.numel() for w in self.model.trainable_parameters)} trainable parameters'
             )
 
         if self.cfg.train or self.cfg.evaluate:
             
             self.log.info('Initializing dataloaders')
-            dataloaders = self.get_dataloaders()#dataset, dataset_test=dataset_test)
+            dataloaders = self.get_dataloaders()
 
         if self.cfg.train:
             
@@ -63,21 +66,30 @@ class BaseExperiment:
 
             self.log.info('Initializing trainer')                
             trainer = Trainer(
-                model, dataloaders, self.preprocessing, augs, tcfg, self.exp_dir, self.device
+                self.model, dataloaders, self.preprocessing, augs,
+                tcfg, self.exp_dir, self.device, self.dtype_train
             )
             self.log.info('Running training')
             trainer.run_training()
 
         if self.cfg.evaluate:
             self.log.info(f'Loading model state from {self.exp_dir}.')
-            model.load(self.exp_dir, self.device)
-            model.eval()
+            self.model.load(self.exp_dir, self.device)
+            self.model = self.model.to(self.dtype_train)
+            self.model.eval()
             self.log.info('Running evaluation')
-            self.evaluate(dataloaders, model)
+            self.evaluate(dataloaders)
 
         if self.cfg.plot:
             self.log.info('Making plots')
             self.plot()
+
+        max_mem_gpu = torch.cuda.max_memory_allocated(self.device)
+        tot_mem_gpu = torch.cuda.mem_get_info(self.device)[1]
+        GB = 1024**3
+        self.log.info(
+            f"Peak GPU RAM usage: {max_mem_gpu/GB:.3} GB (of {tot_mem_gpu/GB:.3} GB available)"
+        )
     
     def get_dataloaders(self):
         

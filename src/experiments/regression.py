@@ -115,22 +115,22 @@ class RegressionExperiment(BaseExperiment):
         self.log.info(f'Saved plots to {savepath}')
     
     @torch.inference_mode()
-    def evaluate(self, dataloaders, model):
+    def evaluate(self, dataloaders):
         """
         Evaluates the regressor on lightcones in the test dataset.
         Predictions are saved alongside truth labels
         """
         
         # disable batchnorm updates, dropout etc.
-        model.eval()
+        self.model.eval()
 
         # get truth targets and predictions across the test set
         labels, preds = [], []
         for x, y in dataloaders['test']:
 
             # predict
-            x = x.to(self.device)
-            pred = model.predict(x).detach().cpu()
+            x = x.to(self.device, self.dtype_train)
+            pred = self.model.predict(x).detach().cpu()
 
             # postprocess output
             for transform in reversed(self.preprocessing['y']):
