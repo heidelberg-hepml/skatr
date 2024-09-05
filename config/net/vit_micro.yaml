@@ -27,13 +27,8 @@ head:
     out_act: ${net.out_act}
     drop: ${net.mlp_drop}
 
-use_conv: False
-conv:
-  pool_kernel: 5
-  pool_stride: 5
-  channels: 1
-use_conv2: False
-conv2:
+adapt_res: False
+adaptor:
   channels: 4
   downsample_factor: 5
   replace_embedding: False

@@ -26,7 +26,7 @@ class InferenceExperiment(BaseExperiment):
         if self.cfg.generative_model == 'CFM':
             return ConditionalFlowMatcher(self.cfg)
         elif self.cfg.generative_model == 'INN':
-            return INN(self.cfg)        
+            return INN(self.cfg)
     
     def plot(self):
         """Adapted from https://github.com/heidelberg-hepml/21cm-cINN/blob/main/Plotting.py"""
@@ -115,7 +115,7 @@ class InferenceExperiment(BaseExperiment):
         self.log.info(f"Saved calibration plot as '{savename}'")
 
     @torch.inference_mode()
-    def evaluate(self, dataloaders, model):
+    def evaluate(self, dataloaders):
         """
         Generates samples from the posterior distributions for a select
         number of lightcones from the test set. The samples are saved
@@ -123,16 +123,16 @@ class InferenceExperiment(BaseExperiment):
         """
 
         # disable batchnorm updates, dropout etc.
-        model.eval()
+        self.model.eval()
         lc_batch, params = next(iter(dataloaders['test']))
         posterior_samples, posterior_logprobs = [], []
         
         # preprocess lightcones and parameters
-        lc_batch = lc_batch[:self.cfg.num_test_points].to(self.device)
-        params = params[:self.cfg.num_test_points].to(self.device)
+        lc_batch = lc_batch[:self.cfg.num_test_points].to(self.device, self.dtype_train)
+        params = params[:self.cfg.num_test_points].to(self.device, self.dtype_train)
 
         # evaluate test param likelihoods
-        param_logprobs = model.log_prob(params, lc_batch).cpu()
+        param_logprobs = self.model.log_prob(params, lc_batch).cpu()
 
         # loop over test points
         for i in range(self.cfg.num_test_points):
@@ -145,7 +145,7 @@ class InferenceExperiment(BaseExperiment):
             # sample posterior in batches
             sample_list, logprob_list = [], []
             for _ in range(self.cfg.num_posterior_samples//self.cfg.sample_batch_size):
-                sample, logprob = model.sample_batch(lc)
+                sample, logprob = self.model.sample_batch(lc)
                 sample_list.append(sample.detach().cpu())
                 logprob_list.append(logprob.detach().cpu())
             

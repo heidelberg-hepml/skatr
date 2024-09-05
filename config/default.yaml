@@ -5,12 +5,13 @@ evaluate: True
 plot: True
 
 proj_dir: /remote/gpu02/ore/skatr
-dtype: float32
 use_gpu: True
-num_cpus: 1
+num_cpus: 0
 device: 0
 submit: False
 dry_run: False
+
+adapt_res: False # TODO: Depracate
 
 prev_exp_dir: null
 
@@ -20,10 +21,12 @@ data:
     train: 0.75
     test: 0.15
   sequential_splits: False
+  dtype: float32
   on_gpu: False
   file_by_file: True
-  summarize: $frozen_backbone
   use_test_dir: False
+  summarize: $frozen_backbone
+  summary_batch_size: 32
 
 training:
   epochs: 1
@@ -34,9 +37,11 @@ training:
     name: AdamW
     kwargs: {weight_decay: 1.e-3}
   scheduler: {}
+  dtype: float32
   augment: True
   augmentations:
     RotateAndReflect: {include_identity: True}
+  augment_test: False
   gradient_norm: null
   validate_freq: 1
   patience: null

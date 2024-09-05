@@ -1,4 +1,5 @@
 import math
+import os
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -8,6 +9,7 @@ from hydra.utils import instantiate
 from torch.utils.checkpoint import checkpoint
 
 from src.utils import masks
+from src.utils.config import get_prev_config
 
 class ViT(nn.Module):
     """
@@ -37,9 +39,7 @@ class ViT(nn.Module):
         self.pos_encoding_freqs = nn.Parameter(
             w.log() if cfg.learn_pos_encoding else w, requires_grad=cfg.learn_pos_encoding
         )
-        self.num_patches = [s // p for s, p in zip(axis_sizes, cfg.patch_shape)]
-        for i, n in enumerate(self.num_patches): # axis values for each dim
-            self.register_buffer(f'grid_{i}', torch.arange(n)*(2*math.pi/n))
+        self.init_pos_grid(axis_sizes)
 
         # transformer stack
         self.blocks = nn.ModuleList([
@@ -64,14 +64,19 @@ class ViT(nn.Module):
     def init_head(self, cfg):
         self.head = instantiate(cfg)
 
-    def init_adaptor(self, channels, downsample_factor, replace_embedding):
+    def init_adaptor(self, cfg):
         self.adaptor = nn.Sequential(
-            nn.Conv3d(1,  channels, downsample_factor, downsample_factor), nn.ReLU()
+            nn.Conv3d(1,  cfg.channels, cfg.downsample_factor, cfg.downsample_factor), nn.ReLU()
         )
-        if replace_embedding:
-            self.embedding = nn.Linear(channels * self.patch_dim, self.cfg.hidden_dim)
+        if cfg.replace_embedding:
+            self.embedding = nn.Linear(cfg.channels * self.patch_dim, self.cfg.hidden_dim)
         else:
-            self.extra_proj = nn.Linear(channels * self.patch_dim, self.patch_dim)
+            self.extra_proj = nn.Linear(cfg.channels * self.patch_dim, self.patch_dim)
+
+    def init_pos_grid(self, axis_sizes):
+        self.num_patches = [s // p for s, p in zip(axis_sizes, self.cfg.patch_shape)]
+        for i, n in enumerate(self.num_patches): # axis values for each dim
+            self.register_buffer(f'grid_{i}', torch.arange(n)*(2*math.pi/n))
 
     def pos_encoding(self): # TODO: Simplify for fixed dim=3
         grids = [getattr(self, f'grid_{i}') for i in range(3)]
@@ -154,6 +159,39 @@ class ViT(nn.Module):
         mask = torch.zeros((B, T), device=x.device).scatter_(-1, mask_idcs, 1).bool()
         return torch.where(mask[..., None], full_mask_token, x)
 
+
+class PretrainedViT(ViT):
+    """
+    A pretrained vision transformer network.
+    """
+
+    def __init__(self, cfg):
+
+        # read backbone config
+        bb_dir = cfg.backbone_dir
+        bcfg = get_prev_config(bb_dir)
+
+        # load backbone state
+        model_state = torch.load(os.path.join(bb_dir, 'model.pt'))["model"]
+        net_state = {
+            k.replace('net.', ''): v for k,v in model_state.items() if k.startswith('net.')
+        }
+        
+        # initialize network and load weights
+        super().__init__(bcfg)
+        self.load_state_dict(net_state)
+        
+        if self.cfg.frozen:
+            # freeze weights and set to eval mode
+            for p in self.parameters():
+                p.requires_grad = False
+            self.eval()
+            
+        # init new head or input adaption if needed
+        if cfg.use_head:
+            self.head = instantiate(cfg.head)
+        if cfg.adapt_res:
+            self.init_adaptor(cfg.adaptor)
 
 
 class PredictorViT(ViT):

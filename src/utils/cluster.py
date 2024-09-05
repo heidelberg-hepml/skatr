@@ -30,15 +30,15 @@ def submit_pbs(cfg, ccfg, hcfg, overrides, out_dir):
         qsub <<EOT
         #PBS -N {cfg.run_name}
         #PBS -q {ccfg.queue}
-        #PBS -l nodes={ccfg.node}:ppn={ccfg.procs}:gpus={ccfg.num_gpus}:{ccfg.queue}
-        #PBS -l mem={ccfg.mem},walltime={ccfg.time}
+        #PBS -l nodes={ccfg.node}:ppn={ccfg.procs or 1}:gpus={ccfg.num_gpus}:{ccfg.queue}
+        #PBS -l walltime={ccfg.time},mem={ccfg.mem},vmem={ccfg.vmem}
         #PBS -o {out_dir}/pbs.log
         #PBS -j oe
         {dependency}
         cd {cfg.proj_dir}
         source setup.sh
         export CUDA_VISIBLE_DEVICES={device}
-        python main.py {' '.join(overrides)} -cn {hcfg.job.config_name}
+        python main.py -cn {hcfg.job.config_name} {' '.join(overrides)} 
         exit 0
         EOT
     """)

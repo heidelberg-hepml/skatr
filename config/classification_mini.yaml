@@ -3,7 +3,7 @@ experiment: ClassificationExperiment
 
 data:
   dir0: /scratch/ore/data/x2
-  dir1: /remote/gpu00/nordmann/skatr/21cm-wrapper/data/x2
+  dir1: /scratch/ore/data_new/x2
   file_by_file: True
   
 net:

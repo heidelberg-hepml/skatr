@@ -1,12 +1,27 @@
 run_name: regression_${net.arch}
 experiment: RegressionExperiment
+
+target_indices: [0,1,2,3,4,5]
+loss: l1
+
+data_shape: [140, 140, 2350]
+
+cluster:
+  queue: h100
+  
 data:
-  dir: /remote/gpu01a/heneka/21cmlightcones/pure_simulations
-  # dir: /scratch2/heneka/21cmlightcones/pure_simulations
+  dir: /scratch/ore/data/hr/half
   file_by_file: True
+  
+net:
+  use_head: True
+  out_channels: 6 # length of target_indices
+
+training:
+  lr: 1.e-4
 
 defaults:
   - default
-  - preprocessing: xandy  
+  - preprocessing: xandy
   - net: vit
   - _self_

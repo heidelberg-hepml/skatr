@@ -23,7 +23,8 @@ class Trainer:
             augmentations:List[Callable],
             cfg:DictConfig,
             exp_dir:str,
-            device:str
+            device:torch.device,
+            dtype:torch.dtype
         ):
         """
         model           -- a pytorch model to be trained
@@ -38,6 +39,7 @@ class Trainer:
         self.dataloaders = dataloaders
         self.cfg = cfg
         self.device = device
+        self.dtype = dtype
         self.exp_dir = exp_dir
         self.preprocessing = preprocessing
         self.augmentations = augmentations
@@ -163,7 +165,7 @@ class Trainer:
             self.optimizer.zero_grad(set_to_none=True)
 
             # place batch on device
-            batch = ensure_device(batch, self.device)
+            batch = ensure_device_and_dtype(batch, self.device, self.dtype)
 
             # augment
             for augment in self.augmentations:
@@ -209,8 +211,13 @@ class Trainer:
         val_losses = []
         for batch in self.dataloaders['val']:
 
+            # augment
+            if self.cfg.augment_test:
+                for augment in self.augmentations:
+                    batch[0] = augment(batch[0])
+
             # place x on device
-            batch = ensure_device(batch, self.device)
+            batch = ensure_device_and_dtype(batch, self.device, self.dtype)
             # calculate loss
             loss = self.model.batch_loss(batch).detach().cpu().numpy()
             val_losses.append(loss)
@@ -259,11 +266,11 @@ class Trainer:
             case _:
                 return sdl_cls(self.optimizer, total_iters=total_steps, **self.cfg.scheduler.kwargs)
 
-def ensure_device(x, device):
+def ensure_device_and_dtype(x, device, dtype):
     """Recursively send tensors within nested structure to device"""
     if isinstance(x, list):
-        return [ensure_device(e, device) for e in x]
+        return [ensure_device_and_dtype(e, device, dtype) for e in x]
     if isinstance(x, tuple):
-        return tuple(ensure_device(e, device) for e in x)
+        return tuple(ensure_device_and_dtype(e, device, dtype) for e in x)
     else:
-        return x.to(device)
+        return x.to(device=device, dtype=dtype)

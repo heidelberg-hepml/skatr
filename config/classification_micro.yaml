@@ -1,0 +1,17 @@
+run_name: classification_micro_${net.arch}
+experiment: ClassificationExperiment
+
+data:
+  dir0: /remote/gpu02/ore/data/x5
+  dir1: /remote/gpu02/ore/data_new/x5
+  file_by_file: False
+
+net:
+  use_head: True
+  out_channels: 1
+
+defaults:
+  - default
+  - preprocessing: xonly
+  - net: vit_micro
+  - _self_

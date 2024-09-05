@@ -3,7 +3,7 @@ in_shape: [1, 140, 140, 2350]
 out_channels: 6
 
 patch_shape: [7, 7, 94]
-hidden_dim: 256
+hidden_dim: 288
 depth: 4
 num_heads: 4
 mlp_ratio: 2.0
@@ -26,3 +26,9 @@ head:
     act: relu
     out_act: ${net.out_act}
     drop: ${net.mlp_drop}
+
+adapt_res: False
+adaptor:
+  channels: 4
+  downsample_factor: 5
+  replace_embedding: False    
