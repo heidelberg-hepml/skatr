@@ -1,4 +1,5 @@
 import logging
+import resource
 import torch
 from abc import abstractmethod
 from hydra.utils import instantiate
@@ -37,6 +38,8 @@ class BaseExperiment:
         # warnings:
         if cfg.data.summarize and not self.cfg.frozen_backbone:
             self.log.warn(f'Asking to summarize dataset, but backbone is not frozen')
+        if ncpus := self.cfg.num_cpus and not cfg.data.file_by_file:
+            self.log.warn(f'Using {ncpus} cpus not reading from disk. Training may be slower.')
 
     def run(self):
         
@@ -84,13 +87,18 @@ class BaseExperiment:
             self.log.info('Making plots')
             self.plot()
 
+        # TODO: place in `log_resources` method
         max_mem_gpu = torch.cuda.max_memory_allocated(self.device)
         tot_mem_gpu = torch.cuda.mem_get_info(self.device)[1]
         GB = 1024**3
         self.log.info(
             f"Peak GPU RAM usage: {max_mem_gpu/GB:.3} GB (of {tot_mem_gpu/GB:.3} GB available)"
         )
-    
+        max_ram = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        self.log.info(
+            f"Peak system RAM usage: {max_ram/1024**2:.3} GB"
+        )
+
     def get_dataloaders(self):
         
         dcfg = self.cfg.data
@@ -155,7 +163,7 @@ class BaseExperiment:
     
     def get_augmentations(self):
         augs = []
-        if self.cfg.training.augment and not self.cfg.data.summarize:
+        if self.cfg.training.augment and not (self.cfg.data.summarize and self.cfg.backbone):
             for name, kwargs in self.cfg.training.augmentations.items():
                 aug = getattr(augmentations, name)(**kwargs)
                 augs.append(aug)

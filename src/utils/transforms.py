@@ -44,7 +44,7 @@ class Upsample:
     """TODO: Fill docstring"""
 
     def __init__(self, factor):
-        self.upsampler = torch.nn.Upsample(scale_factor=factor)
+        self.upsampler = torch.nn.Upsample(scale_factor=factor, mode='trilinear')
         self.downsampler = torch.nn.AvgPool3d(kernel_size=factor, stride=factor)
     
     def forward(self, x):

@@ -211,6 +211,11 @@ class Trainer:
         val_losses = []
         for batch in self.dataloaders['val']:
 
+            # augment
+            if self.cfg.augment_test:
+                for augment in self.augmentations:
+                    batch[0] = augment(batch[0])
+
             # place x on device
             batch = ensure_device_and_dtype(batch, self.device, self.dtype)
             # calculate loss

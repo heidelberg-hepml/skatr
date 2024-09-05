@@ -6,7 +6,7 @@ plot: True
 
 proj_dir: /remote/gpu02/ore/skatr
 use_gpu: True
-num_cpus: 2
+num_cpus: 0
 device: 0
 submit: False
 dry_run: False
@@ -41,6 +41,7 @@ training:
   augment: True
   augmentations:
     RotateAndReflect: {include_identity: True}
+  augment_test: False
   gradient_norm: null
   validate_freq: 1
   patience: null

@@ -1,4 +1,4 @@
-run_name: regression_hires_${net.arch}
+run_name: fine_reg_hires_proj
 experiment: RegressionExperiment
 
 target_indices: [0,1,2,3,4,5]
@@ -17,12 +17,16 @@ replace_backbone: True
 net:
   out_channels: 6 # length of target_indices
   use_head: True
-  use_conv: False # remove
-  use_conv2: True
+  adapt_res: True
+  adaptor:
+    channels: 4
+    downsample_factor: 5
+    replace_embedding: False
 
 training:
-  epochs: 250
-  lr: 1.e-4
+  epochs: 500
+  patience: 50
+  lr: 1.e-3
   test_batch_size: ${training.batch_size}
 
 defaults:

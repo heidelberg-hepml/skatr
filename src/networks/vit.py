@@ -40,9 +40,6 @@ class ViT(nn.Module):
             w.log() if cfg.learn_pos_encoding else w, requires_grad=cfg.learn_pos_encoding
         )
         self.init_pos_grid(axis_sizes)
-        # self.num_patches = [s // p for s, p in zip(axis_sizes, cfg.patch_shape)]
-        # for i, n in enumerate(self.num_patches): # axis values for each dim
-        #     self.register_buffer(f'grid_{i}', torch.arange(n)*(2*math.pi/n))
 
         # transformer stack
         self.blocks = nn.ModuleList([
