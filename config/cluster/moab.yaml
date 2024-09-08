@@ -1,0 +1,7 @@
+scheduler: moab
+queue: gpu
+procs: ${num_cpus}
+pmem: 4gb
+time: '4:0:0'
+num_gpus: 1
+feature: v100
