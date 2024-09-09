@@ -1,0 +1,6 @@
+scheduler: slurm
+queue: gpu-a100
+mem: 24G
+time: '40:0:0'
+num_gpus: 1
+dependency: null
