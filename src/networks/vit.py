@@ -168,7 +168,7 @@ class ViT(nn.Module):
         full_mask_token = repeat(self.mask_token, 'd -> b t d', b=B, t=T)
         # construct boolean mask
         mask = torch.zeros((B, T), device=x.device).scatter_(-1, mask_idcs, 1).bool()
-        return torch.where(mask[..., None], full_mask_token, x)
+        return torch.where(mask[..., None], full_mask_token, x)          
 
 
 class PredictorViT(ViT):
@@ -356,6 +356,8 @@ class PretrainedViT(ViT):
             self.head = instantiate(cfg.head)
         if cfg.adapt_res:
             self.init_adaptor(cfg.adaptor)
+        if cfg.interp_pos_encoding:
+            self.bb.init_pos_grid(cfg.data_shape)              
 
 
 def check_shapes(cfg):

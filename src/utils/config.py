@@ -17,8 +17,8 @@ def update_config_from_prev(cfg, hydra_cfg, prev_exp_dir):
 def check_cfg(cfg, log):
 
     # warn
-    if cfg.data.summarize and not cfg.frozen_backbone:
-        log.warn(f'Asking to summarize dataset, but backbone is not frozen')
+    if cfg.data.summarize and not cfg.summary_net.frozen:
+        log.warn(f'Summary net is not frozen, but asking to summarize dataset.')
     
     if cfg.num_cpus and not cfg.data.file_by_file:
         log.warn(f'Using {cfg.num_cpus} cpus not reading from disk. Training may be slower.')

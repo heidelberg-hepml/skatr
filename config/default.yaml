@@ -23,7 +23,7 @@ data:
   on_gpu: False
   file_by_file: True
   use_test_dir: False
-  summarize: $frozen_backbone
+  summarize: False
   summary_batch_size: 32
 
 training:
@@ -50,9 +50,9 @@ training:
   use_tensorboard: True
   
 summary_net: null
-backbone: null
-frozen_backbone: True
-replace_backbone: False
+# backbone: null
+# frozen_backbone: True
+# replace_backbone: False
 
 defaults:
   - cluster: pbs

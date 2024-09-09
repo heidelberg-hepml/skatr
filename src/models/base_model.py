@@ -15,24 +15,21 @@ class Model(nn.Module):
         super().__init__()
         self.cfg = cfg
 
-        # net_cls = getattr(networks, cfg.net.arch)
-        # # TODO: Automatically set MLP input dim to backbone embedding dim
-        # self.net = net_cls(cfg.net)
-
-        # optionally initialize a backbone
-        if cfg.backbone:
-            log.info('Loading pretrained backbone')
-            self.load_backbone()
+        # optionally initialize a summary network
+        if cfg.summary_net is not None:
+            log.info('Loading summary network')
+            sum_net_cls = getattr(networks, cfg.summary_net.arch)
+            self.summary_net = sum_net_cls(cfg.summary_net)
             log.info(
-                f'Backbone ([{self.bb.__class__.__name__}]) has '
-                f'{sum(w.numel() for w in self.bb.parameters())} parameters'
+                f'Summary net ([{self.summary_net.__class__.__name__}]) has '
+                f'{sum(w.numel() for w in self.summary_net.parameters())} parameters'
             )
 
-        if not cfg.replace_backbone:
-            # initialize network
-            net_cls = getattr(networks, cfg.net.arch)
-            # TODO: Automatically set MLP input dim to backbone embedding dim
-            self.net = net_cls(cfg.net)
+        # initialize network
+        # TODO: depracate cfg.replace_backbone
+        # TODO: Automatically set MLP input dim to backbone embedding dim
+        net_cls = getattr(networks, cfg.net.arch)
+        self.net = net_cls(cfg.net)
         
     @property
     def trainable_parameters(self):
@@ -52,37 +49,37 @@ class Model(nn.Module):
         state_dicts = torch.load(path, map_location=device)
         self.load_state_dict(state_dicts["model"])
 
-    def load_backbone(self):
+    # def load_backbone(self):
         
-        bb_dir = self.cfg.backbone
+    #     bb_dir = self.cfg.backbone
 
-        # load backbone state
-        model_state = torch.load(os.path.join(bb_dir, 'model.pt'))["model"]
-        net_state = {
-            k.replace('net.', ''): v for k,v in model_state.items() if k.startswith('net.')
-        }
+    #     # load backbone state
+    #     model_state = torch.load(os.path.join(bb_dir, 'model.pt'))["model"]
+    #     net_state = {
+    #         k.replace('net.', ''): v for k,v in model_state.items() if k.startswith('net.')
+    #     }
         
-        # read backbone config
-        bcfg = get_prev_config(bb_dir)
+    #     # read backbone config
+    #     bcfg = get_prev_config(bb_dir)
         
-        # initialize backbone net
-        bb_cls = getattr(networks, bcfg.net.arch)
-        self.bb = bb_cls(bcfg.net)
-        self.bb.load_state_dict(net_state)
+    #     # initialize backbone net
+    #     bb_cls = getattr(networks, bcfg.net.arch)
+    #     self.bb = bb_cls(bcfg.net)
+    #     self.bb.load_state_dict(net_state)
         
-        if self.cfg.frozen_backbone:
-            # freeze weights and set to eval mode
-            for p in self.bb.parameters():
-                p.requires_grad = False
-            self.bb.eval()
+    #     if self.cfg.frozen_backbone:
+    #         # freeze weights and set to eval mode
+    #         for p in self.bb.parameters():
+    #             p.requires_grad = False
+    #         self.bb.eval()
 
         # if self.cfg.net.interp_pos_embed:
         #     self.bb.init_pos_grid(self.cfg.data_shape)
 
-        if self.cfg.replace_backbone:
+    #     if self.cfg.replace_backbone:
             
-            # init new head or input adaption if needed
-            if self.cfg.net.use_head: self.bb.init_head(self.cfg.net.head)
-            if self.cfg.net.adapt_res: self.bb.init_adaptor(self.cfg.net.adaptor)
+    #         # init new head or input adaption if needed
+    #         if self.cfg.net.use_head: self.bb.init_head(self.cfg.net.head)
+    #         if self.cfg.net.adapt_res: self.bb.init_adaptor(self.cfg.net.adaptor)
             
-            self.net = self.bb
+    #         self.net = self.bb
