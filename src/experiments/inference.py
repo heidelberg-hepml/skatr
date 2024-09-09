@@ -167,7 +167,7 @@ class InferenceExperiment(BaseExperiment):
 
         # collect true parameters
         target_indices = sorted(self.cfg.target_indices)
-        params = params[:self.cfg.num_test_points, target_indices].numpy()
+        params = params[:self.cfg.num_test_points, target_indices]
 
         # save results
         savename = 'param_posterior_pairs.npz'

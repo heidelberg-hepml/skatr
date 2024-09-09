@@ -80,28 +80,34 @@ class LCDatasetByFile(Dataset):
 
 class SummarizedLCDataset(Dataset):
 
-    def __init__(
-        self, dataset, summary_net, device, augment=False, summary_batch_size=32, num_cpus=0
-        ):
+    def __init__(self, dataset, summary_net, device, exp_cfg, dataset_cfg, augment=False):
         
         self.Xs = []
         self.ys = []
         self.summary_net = summary_net
 
+        self.pool_summary = not ( # TODO: Clean up
+            hasattr(summary_net, 'head') or exp_cfg.net.arch == 'AttentiveHead' 
+        )
+
         if augment:
             aug = RotateAndReflect()
 
         dataloader = DataLoader(
-            dataset, batch_size=summary_batch_size, num_workers=num_cpus if num_cpus > 1 else 0
+            dataset, batch_size=dataset_cfg.summary_batch_size,
+            num_workers = exp_cfg.num_cpus if exp_cfg.num_cpus > 1 else 0
         )
+
+        dset_device = device if dataset_cfg.on_gpu else torch.device('cpu')
         for X, y in dataloader:
             
+            y = y.to(dset_device)
             X = X.to(device)
-            self.Xs.append(self.summarize(X))
+            self.Xs.append(self.summarize(X).to(dset_device))
             self.ys.append(y)
             if augment:
                 for x in aug.enumerate(X):
-                    self.Xs.append(self.summarize(x))
+                    self.Xs.append(self.summarize(x).to(dset_device))
                     self.ys.append(y)
 
         self.Xs = torch.vstack(self.Xs)
@@ -110,7 +116,7 @@ class SummarizedLCDataset(Dataset):
     @torch.no_grad()
     def summarize(self, x):
         x = self.summary_net(x)
-        if not hasattr(self.summary_net, 'head'):
+        if self.pool_summary:
             x = x.mean(1) # (B, T, D) --> (B, D)
         return x
 

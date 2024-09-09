@@ -11,8 +11,6 @@ device: 0
 submit: False
 dry_run: False
 
-adapt_res: False # TODO: Depracate
-
 prev_exp_dir: null
 
 data:
@@ -51,6 +49,7 @@ training:
   warm_start_epoch: null
   use_tensorboard: True
   
+summary_net: null
 backbone: null
 frozen_backbone: True
 replace_backbone: False

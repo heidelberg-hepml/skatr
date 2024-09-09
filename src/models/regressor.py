@@ -21,7 +21,8 @@ class Regressor(Model):
     def forward(self, x):
         if self.cfg.backbone and not self.cfg.data.summarize and not self.cfg.replace_backbone:
             x = self.bb(x)
-            if not hasattr(self.bb, 'head'):
+            # if not hasattr(self.bb, 'head') and self.net.cfg.arch == 'MLP': # weird...
+            if not hasattr(self.bb, 'head') and self.cfg.net.arch == 'MLP': #TODO: Clean
                 x = x.mean(1) # (B, T, D) --> (B, D)
 
         return self.net(x)

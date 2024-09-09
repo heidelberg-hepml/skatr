@@ -52,8 +52,8 @@ class RotateAndReflect:
 class Upsample:
     """TODO: Fill docstring"""
 
-    def __init__(self, factor=5):
-        self.upsampler = torch.nn.Upsample(scale_factor=factor, mode='trilinear')
+    def __init__(self, factor=5, mode='trilinear'):
+        self.upsampler = torch.nn.Upsample(scale_factor=factor, mode=mode)
     
     def __call__(self, x):
         return self.upsampler(x)

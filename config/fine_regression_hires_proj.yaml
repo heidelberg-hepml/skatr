@@ -21,6 +21,7 @@ net:
   adaptor:
     channels: 4
     downsample_factor: 5
+    extra_proj: True
     replace_embedding: False
 
 training:

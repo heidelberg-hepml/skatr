@@ -35,12 +35,6 @@ class BaseExperiment:
         }
         self.log.info(f'Loaded preprocessing dict: {transform_names}')
 
-        # warnings:
-        if cfg.data.summarize and not self.cfg.frozen_backbone:
-            self.log.warn(f'Asking to summarize dataset, but backbone is not frozen')
-        if ncpus := self.cfg.num_cpus and not cfg.data.file_by_file:
-            self.log.warn(f'Using {ncpus} cpus not reading from disk. Training may be slower.')
-
     def run(self):
         
         self.log.info('Initializing model')
@@ -144,10 +138,16 @@ class BaseExperiment:
             
             # optionally summarize (compress) dataset
             if self.cfg.backbone and dcfg.summarize:
-                dataset_splits[k] = SummarizedLCDataset(
-                    d, summary_net=self.model.bb, device=self.device,
-                    summary_batch_size=dcfg.summary_batch_size, num_cpus=self.cfg.num_cpus,
-                    augment=self.cfg.training.augment and k=='train' # only augment training split
+                
+                augstring = ' (with augmentaitons) ' if self.cfg.training.augment else ' '
+                self.log.info(
+                    f'Summarizing {k} split{augstring}with batch size {dcfg.summary_batch_size}.'
+                )
+                
+                # pool_summary = self.cfg.net.arch != 'AttentiveHead' # TODO: Clean up
+                dataset_splits[k] = SummarizedLCDataset( # TODO: pass cfg and dcfg
+                    d, summary_net=self.model.bb, device=self.device, exp_cfg=self.cfg,
+                    dataset_cfg=dcfg, augment=self.cfg.training.augment and k=='train', # only augment training split
                 )
 
             batch_size = (self.cfg.training.batch_size if k=='train'

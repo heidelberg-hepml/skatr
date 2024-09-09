@@ -32,3 +32,5 @@ adaptor:
   channels: 4
   downsample_factor: 5
   replace_embedding: False
+  batchnorm: False
+  init_pool_as_mean: False

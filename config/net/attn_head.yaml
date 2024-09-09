@@ -1,0 +1,9 @@
+arch: AttentiveHead
+embed_dim: 144
+num_heads: 6
+mlp_ratio: 4.0
+norm_layer: LayerNorm
+init_std: 0.02
+qkv_bias: True
+out_channels: 6
+complete_block: True

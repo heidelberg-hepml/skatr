@@ -33,6 +33,10 @@ extra_mlp:
   out_act: null
   drop: 0.
 
+use_attn_pool: False
+attn_pool:
+  embed_dim: ${summary_dim}
+
 data:
   dir: /scratch/ore/data/x5
   file_by_file: False
@@ -54,4 +58,5 @@ defaults:
   - preprocessing: xandy
   - net: mlp
   - net@summary_net: vit_micro
+  - net@attn_pool: attn_head
   - _self_

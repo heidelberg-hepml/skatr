@@ -76,8 +76,8 @@ class Model(nn.Module):
                 p.requires_grad = False
             self.bb.eval()
 
-        if self.cfg.adapt_res:
-            self.bb.init_pos_grid(self.cfg.data_shape)
+        # if self.cfg.net.interp_pos_embed:
+        #     self.bb.init_pos_grid(self.cfg.data_shape)
 
         if self.cfg.replace_backbone:
             

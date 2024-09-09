@@ -9,8 +9,9 @@ from omegaconf import DictConfig
 from scipy.stats import special_ortho_group
 from typing import Callable, Iterable, Type, Union
 
+from src import networks
 from src.models.base_model import Model
-from src.networks import ViT, MLP
+# from src.networks import ViT, MLP, AttentiveHead
 
 class INN(Model):
     """
@@ -19,9 +20,16 @@ class INN(Model):
     def __init__(self, cfg:DictConfig):
         super().__init__(cfg)
         self.cfg = cfg
-        self.sum_net = self.bb if cfg.backbone else ViT(cfg.summary_net)
+        if cfg.backbone:
+            self.sum_net = self.bb
+        else:
+            sum_net_cls = getattr(networks, cfg.summary_net.arch)
+            self.sum_net = sum_net_cls(cfg.summary_net)
+
         if cfg.use_extra_summary_mlp:
-            self.extra_mlp = MLP(cfg.extra_mlp)
+            self.extra_mlp = networks.MLP(cfg.extra_mlp)
+        if cfg.use_attn_pool:
+            self.attn_pool = networks.AttentiveHead(cfg.attn_pool)
 
         self.build_inn()
 
@@ -34,10 +42,14 @@ class INN(Model):
     
     def summarize(self, c):
         c = self.sum_net(c)
-        if not hasattr(self.sum_net, 'head'):
+        if not (hasattr(self.sum_net, 'head') or hasattr(self, 'attn_pool')):
+        # if not (hasattr(self.sum_net, 'head') or hasattr(self.sum_net, 'attn_pool')):
             c = c.mean(1) # (B, T, D) -> (B, D)
         if self.cfg.use_extra_summary_mlp:
             c = self.extra_mlp(c)
+        if self.cfg.use_attn_pool:
+            c = self.attn_pool(c)
+
         return c
 
     def build_inn(self):

@@ -6,5 +6,4 @@ matplotlib
 numpy
 pytorch
 tensorboard
-timm
 torchdiffeq

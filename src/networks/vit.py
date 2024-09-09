@@ -65,13 +65,24 @@ class ViT(nn.Module):
         self.head = instantiate(cfg)
 
     def init_adaptor(self, cfg):
-        self.adaptor = nn.Sequential(
-            nn.Conv3d(1,  cfg.channels, cfg.downsample_factor, cfg.downsample_factor), nn.ReLU()
-        )
+        
+        # downsampling conv
+        pool = nn.Conv3d(1,  cfg.channels, cfg.downsample_factor, cfg.downsample_factor)
+        if cfg.init_pool_as_mean:
+            nn.init.constant_(pool.weight, 1/cfg.downsample_factor**3)
+            nn.init.constant_(pool.bias, 0.)
+        
+        use_relu = True
         if cfg.replace_embedding:
             self.embedding = nn.Linear(cfg.channels * self.patch_dim, self.cfg.hidden_dim)
-        else:
+        elif cfg.extra_proj:
             self.extra_proj = nn.Linear(cfg.channels * self.patch_dim, self.patch_dim)
+        else:
+            use_relu = False
+    
+        self.adaptor = nn.Sequential(pool)
+        if use_relu: self.adaptor.append(nn.ReLU())
+        if cfg.batchnorm: self.adaptor.append(nn.BatchNorm3d(cfg.channels))
 
     def init_pos_grid(self, axis_sizes):
         self.num_patches = [s // p for s, p in zip(axis_sizes, self.cfg.patch_shape)]
@@ -100,8 +111,8 @@ class ViT(nn.Module):
         :param mask: a tensor of patch indices that should be masked out of `x`.
         """
 
-        if hasattr(self, 'conv'):
-            x = self.conv(x)
+        # if hasattr(self, 'conv'):
+        #     x = self.conv(x)
         if hasattr(self, 'adaptor'):
             x = self.adaptor(x)
             
@@ -158,40 +169,6 @@ class ViT(nn.Module):
         # construct boolean mask
         mask = torch.zeros((B, T), device=x.device).scatter_(-1, mask_idcs, 1).bool()
         return torch.where(mask[..., None], full_mask_token, x)
-
-
-class PretrainedViT(ViT):
-    """
-    A pretrained vision transformer network.
-    """
-
-    def __init__(self, cfg):
-
-        # read backbone config
-        bb_dir = cfg.backbone_dir
-        bcfg = get_prev_config(bb_dir)
-
-        # load backbone state
-        model_state = torch.load(os.path.join(bb_dir, 'model.pt'))["model"]
-        net_state = {
-            k.replace('net.', ''): v for k,v in model_state.items() if k.startswith('net.')
-        }
-        
-        # initialize network and load weights
-        super().__init__(bcfg)
-        self.load_state_dict(net_state)
-        
-        if self.cfg.frozen:
-            # freeze weights and set to eval mode
-            for p in self.parameters():
-                p.requires_grad = False
-            self.eval()
-            
-        # init new head or input adaption if needed
-        if cfg.use_head:
-            self.head = instantiate(cfg.head)
-        if cfg.adapt_res:
-            self.init_adaptor(cfg.adaptor)
 
 
 class PredictorViT(ViT):
@@ -342,6 +319,44 @@ class Mlp(nn.Module):
         x = self.drop2(x)
         return x
     
+
+class PretrainedViT(ViT):
+    """
+    A class for initializing pretrained ViTs.
+    """
+
+    def __init__(self, cfg):
+
+        # read backbone config
+        bb_dir = cfg.backbone_dir
+        bcfg = get_prev_config(bb_dir)
+
+        # load backbone state
+        model_state = torch.load(os.path.join(bb_dir, 'model.pt'))["model"]
+        net_state = {
+            k.replace('net.', ''): v for k,v in model_state.items() if k.startswith('net.')
+        }
+        
+        # initialize network and load weights
+        super().__init__(bcfg.net)
+        self.load_state_dict(net_state)
+        
+        # delete the head module used in pretraining
+        if cfg.drop_head and hasattr(self, 'head'):
+            del self.head
+
+        # freeze weights and set to eval mode
+        if cfg.frozen:
+            for p in self.parameters():
+                p.requires_grad = False
+            self.eval()
+            
+        # init new head or input adaption if needed
+        if cfg.add_head:
+            self.head = instantiate(cfg.head)
+        if cfg.adapt_res:
+            self.init_adaptor(cfg.adaptor)
+
 
 def check_shapes(cfg):
     for i, (s, p) in enumerate(zip(cfg.in_shape[1:], cfg.patch_shape)):

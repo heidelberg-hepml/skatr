@@ -7,14 +7,14 @@ from omegaconf import DictConfig
 
 from src import experiments
 from src.utils.cluster import submit
-from src.utils.config import update_config_from_prev
+from src.utils.config import update_config_from_prev, check_cfg
 
 log = logging.getLogger('SKATR')
 
-@hydra.main(config_path='config', config_name='regression_micro', version_base=None)
+@hydra.main(config_path='config', config_name='rerun', version_base=None)
 def main(cfg:DictConfig):
 
-    # read hydra config    
+    # read hydra config
     hcfg = HydraConfig.get()
 
     # determine experiment directory
@@ -23,6 +23,9 @@ def main(cfg:DictConfig):
     # resolve config if loading previous experiment
     if cfg.prev_exp_dir:
         cfg = update_config_from_prev(cfg, hcfg, exp_dir)
+
+    # check cfg
+    check_cfg(cfg, log)
 
     # submit this script to a cluster
     if cfg.submit:
