@@ -48,38 +48,3 @@ class Model(nn.Module):
         path = os.path.join(exp_dir, 'model.pt')
         state_dicts = torch.load(path, map_location=device)
         self.load_state_dict(state_dicts["model"])
-
-    # def load_backbone(self):
-        
-    #     bb_dir = self.cfg.backbone
-
-    #     # load backbone state
-    #     model_state = torch.load(os.path.join(bb_dir, 'model.pt'))["model"]
-    #     net_state = {
-    #         k.replace('net.', ''): v for k,v in model_state.items() if k.startswith('net.')
-    #     }
-        
-    #     # read backbone config
-    #     bcfg = get_prev_config(bb_dir)
-        
-    #     # initialize backbone net
-    #     bb_cls = getattr(networks, bcfg.net.arch)
-    #     self.bb = bb_cls(bcfg.net)
-    #     self.bb.load_state_dict(net_state)
-        
-    #     if self.cfg.frozen_backbone:
-    #         # freeze weights and set to eval mode
-    #         for p in self.bb.parameters():
-    #             p.requires_grad = False
-    #         self.bb.eval()
-
-        # if self.cfg.net.interp_pos_embed:
-        #     self.bb.init_pos_grid(self.cfg.data_shape)
-
-    #     if self.cfg.replace_backbone:
-            
-    #         # init new head or input adaption if needed
-    #         if self.cfg.net.use_head: self.bb.init_head(self.cfg.net.head)
-    #         if self.cfg.net.adapt_res: self.bb.init_adaptor(self.cfg.net.adaptor)
-            
-    #         self.net = self.bb
