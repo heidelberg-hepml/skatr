@@ -1,7 +1,6 @@
 run_name: fine_regression_micro_${net.arch}
 experiment: RegressionExperiment
 
-backbone: runs/pretraining_micro/2024-07-04_18-06-14
 latent_dim: 144
 
 training:
