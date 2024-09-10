@@ -7,17 +7,15 @@ A general-purpose summary transformer for processing lightcones observed by the 
 
 
 ## Basic usage
-The script `main.py` is used to run experiments. Each experiment consists of training/evaluating a model as well as creating plots. For example, to run the default experiment, simply use:
+The script `main.py` is used to run experiments. Each experiment consists of training/evaluating a model as well as creating plots. For example, to run a regression experiment, simply use:
 ```
-python3 main.py
+python3 main.py -cn regression
 ```
-Experiment settings can be adjusted from the command line. For example, to use a different neural network, simply add command line arguments:
+In the above, `-cn` is short for `--config_name`.
+
+Experiment settings can be adjusted from the command line. For example, to use a different neural network use:
 ```
-python3 main.py net=<network_config>
-```
-To change experiment, a different syntax is needed. The `--config_name` (or  just `-cn`) option should be set:
-```
-python3 main.py -cn <experiment_config>
+python3 main.py -cn regression net=cnn
 ```
 
 The following is a description of currently-implemented experiments:
@@ -32,12 +30,12 @@ One often needs to re-run a previous experiment. This can be achieved simply fro
 
 - Continuing training from a saved checkpoint:
 ```
-python3 main.py prev_exp_dir=</path/to/prev/exp> training.warm_start=True -cn <default_config> 
-python3 main.py prev_exp_dir=</path/to/prev/exp> training.warm_start=True training.warm_start_epoch=30 -cn <default_config>
+python3 main.py -cn <prev_config_name> prev_exp_dir=</path/to/prev/exp> training.warm_start=True  
+python3 main.py -cn <prev_config_name> prev_exp_dir=</path/to/prev/exp> training.warm_start=True training.warm_start_epoch=30
 ```
 - Repeating evaluation and/or plotting from using a saved model:
 ```
-python3 main.py prev_exp_dir=</path/to/prev/exp> train=False evaluate=False -cn <default_config>
+python3 main.py -cn <prev_config_name> prev_exp_dir=</path/to/prev/exp> train=False evaluate=False 
 ```
 The specific configuration will be loaded from the previous experiment. Command line overrides are also applied.
 
