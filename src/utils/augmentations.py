@@ -30,7 +30,7 @@ class RotateAndReflect:
     
     def enumerate(self, x):
         """
-        Returns a tuple containing all transformations of the input
+        Returns a list containing all transformations of the input
 
         :param x: A tensor containing a batch of lightcones.
         """

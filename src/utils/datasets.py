@@ -91,7 +91,7 @@ class SummarizedLCDataset(Dataset):
         )
 
         if augment:
-            aug = RotateAndReflect()
+            aug = RotateAndReflect(include_identity=True)
 
         dataloader = DataLoader(
             dataset, batch_size=dataset_cfg.summary_batch_size,
@@ -101,14 +101,17 @@ class SummarizedLCDataset(Dataset):
         dset_device = device if dataset_cfg.on_gpu else torch.device('cpu')
         for X, y in dataloader:
             
-            y = y.to(dset_device)
+            self.ys.append(y.to(dset_device))
+
             X = X.to(device)
-            self.Xs.append(self.summarize(X).to(dset_device))
-            self.ys.append(y)
             if augment:
-                for x in aug.enumerate(X):
-                    self.Xs.append(self.summarize(x).to(dset_device))
-                    self.ys.append(y)
+                summary = torch.stack( # collect all augmentations of X
+                    [self.summarize(x).to(dset_device) for x in aug.enumerate(X)], dim=1
+                )
+            else:
+                summary = self.summarize(X).to(dset_device)
+
+            self.Xs.append(summary)
 
         self.Xs = torch.vstack(self.Xs)
         self.ys = torch.vstack(self.ys)
@@ -125,3 +128,10 @@ class SummarizedLCDataset(Dataset):
 
     def __getitem__(self, idx):
         return self.Xs[idx], self.ys[idx]
+
+    def collate_fn(self, batch):
+        """A collator that selects one augmentation of X."""
+        # Same augmentation for each batch element. Alternative is to append in a loop
+        X, y = torch.utils.data.default_collate(batch)
+        idx = torch.randint(X.size(1), ())
+        return X[:, idx], y

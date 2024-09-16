@@ -4,7 +4,7 @@ import sys
 import torch
 from abc import abstractmethod
 from hydra.utils import instantiate
-from torch.utils.data import DataLoader, random_split, Subset
+from torch.utils.data import DataLoader, Subset, default_collate, random_split
 
 from src.utils import augmentations
 from src.utils.datasets import SummarizedLCDataset
@@ -130,6 +130,8 @@ class BaseExperiment:
         self.log.info(f'{num_cpus=}')
         for k, d in dataset_splits.items():
             
+            collate_fn = default_collate
+
             # optionally summarize (compress) dataset
             if dcfg.summarize:
 
@@ -137,7 +139,7 @@ class BaseExperiment:
                     self.log.error('Asking to summarize dataset, but no summary net provided.')
                     sys.exit()
 
-                augstring = ' (with augmentaitons) ' if tcfg.augment else ' '
+                augstring = ' (with augmentaitons) ' if tcfg.augment and k=='train' else ' '
                 self.log.info(
                     f'Summarizing {k} split{augstring}with batch size {dcfg.summary_batch_size}.'
                 )
@@ -147,9 +149,14 @@ class BaseExperiment:
                     dataset_cfg=dcfg, augment=tcfg.augment and k=='train', # only augment training split
                 )
 
+                if tcfg.augment and k=='train':
+                    # select one augmentation per batch
+                    collate_fn = dataset_splits[k].collate_fn
+
             batch_size = tcfg.batch_size if k=='train' else tcfg.test_batch_size
             dataloaders[k] = DataLoader(
                 dataset_splits[k], shuffle=k=='train', drop_last=k=='train', batch_size=batch_size,
+                collate_fn=collate_fn,
                 pin_memory=False, # pinning can cause memory issues with large lightcones
                 num_workers=num_cpus # parallel loading from GPU causes CUDA error
             )
