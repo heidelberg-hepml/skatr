@@ -20,8 +20,8 @@ inn:
   latent_space: gaussian
   dropout: 0.
 
-summary_net:
-  out_channels: ${summary_dim}
+# summary_net:
+#   out_channels: ${summary_dim}
 
 use_extra_summary_mlp: False
 extra_mlp:
@@ -36,6 +36,7 @@ extra_mlp:
 use_attn_pool: False
 attn_pool:
   embed_dim: ${summary_dim}
+  out_channels: ${summary_dim}
 
 data:
   dir: /scratch/ore/data/x5
@@ -43,7 +44,7 @@ data:
 
 training:
   epochs: 500
-  lr: 0.001
+  lr: 0.0001
   batch_size: 64
   test_batch_size: ${num_test_points}
   optimizer:

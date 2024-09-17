@@ -20,11 +20,8 @@ class INN(Model):
     def __init__(self, cfg:DictConfig):
         super().__init__(cfg)
         self.cfg = cfg
-        if cfg.backbone:
-            self.sum_net = self.bb
-        else:
-            sum_net_cls = getattr(networks, cfg.summary_net.arch)
-            self.sum_net = sum_net_cls(cfg.summary_net)
+        sum_net_cls = getattr(networks, cfg.summary_net.arch)
+        self.summary_net = sum_net_cls(cfg.summary_net)
 
         if cfg.use_extra_summary_mlp:
             self.extra_mlp = networks.MLP(cfg.extra_mlp)
@@ -41,9 +38,9 @@ class INN(Model):
         return subnet
     
     def summarize(self, c):
-        c = self.sum_net(c)
-        if not (hasattr(self.sum_net, 'head') or hasattr(self, 'attn_pool')):
-        # if not (hasattr(self.sum_net, 'head') or hasattr(self.sum_net, 'attn_pool')):
+        c = self.summary_net(c)
+        if not (hasattr(self.summary_net, 'head') or hasattr(self, 'attn_pool')):
+        # if not (hasattr(self.summary_net, 'head') or hasattr(self.summary_net, 'attn_pool')):
             c = c.mean(1) # (B, T, D) -> (B, D)
         if self.cfg.use_extra_summary_mlp:
             c = self.extra_mlp(c)

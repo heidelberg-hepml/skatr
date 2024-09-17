@@ -21,7 +21,7 @@ class Model(nn.Module):
             sum_net_cls = getattr(networks, cfg.summary_net.arch)
             self.summary_net = sum_net_cls(cfg.summary_net)
             log.info(
-                f'Summary net ([{self.summary_net.__class__.__name__}]) has '
+                f'Summary net ({self.summary_net.__class__.__name__}) has '
                 f'{sum(w.numel() for w in self.summary_net.parameters())} parameters'
             )
 
