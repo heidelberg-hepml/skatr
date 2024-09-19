@@ -1,8 +1,8 @@
-run_name: inference_micro_${summary_net.arch}
+run_name: inference_${summary_net.arch}
 experiment: InferenceExperiment
 
 dim: 6
-summary_dim: 144
+summary_dim: 96
 target_indices: [0,1,2,3,4,5]
 
 num_test_points: 250
@@ -39,13 +39,14 @@ attn_pool:
   out_channels: ${summary_dim}
 
 data:
-  dir: /scratch/ore/data/x5
-  file_by_file: False
+  dir: /scratch2/heneka/21cmlightcones/pure_simulations
+  file_by_file: True
 
 training:
   epochs: 500
+  patience: 50
   lr: 0.0001
-  batch_size: 64
+  batch_size: 32
   test_batch_size: ${num_test_points}
   optimizer:
     name: AdamW
@@ -58,6 +59,6 @@ defaults:
   - default
   - preprocessing: xandy
   - net: mlp
-  - net@summary_net: vit_micro
+  - net@summary_net: vit
   - net@attn_pool: attn_head
   - _self_

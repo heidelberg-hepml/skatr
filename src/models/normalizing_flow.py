@@ -23,6 +23,11 @@ class INN(Model):
         sum_net_cls = getattr(networks, cfg.summary_net.arch)
         self.summary_net = sum_net_cls(cfg.summary_net)
 
+        self.pool_summary = not (
+            hasattr(self.summary_net, 'head') or
+            hasattr(self, 'attn_pool') or
+            cfg.summary_net.arch == 'CNN'
+        )
         if cfg.use_extra_summary_mlp:
             self.extra_mlp = networks.MLP(cfg.extra_mlp)
         if cfg.use_attn_pool:
@@ -39,7 +44,8 @@ class INN(Model):
     
     def summarize(self, c):
         c = self.summary_net(c)
-        if not (hasattr(self.summary_net, 'head') or hasattr(self, 'attn_pool')):
+        if self.pool_summary:
+        # if not (hasattr(self.summary_net, 'head') or hasattr(self, 'attn_pool')):
         # if not (hasattr(self.summary_net, 'head') or hasattr(self.summary_net, 'attn_pool')):
             c = c.mean(1) # (B, T, D) -> (B, D)
         if self.cfg.use_extra_summary_mlp:
