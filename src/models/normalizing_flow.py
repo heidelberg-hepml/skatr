@@ -23,15 +23,16 @@ class INN(Model):
         sum_net_cls = getattr(networks, cfg.summary_net.arch)
         self.summary_net = sum_net_cls(cfg.summary_net)
 
-        self.pool_summary = not (
-            hasattr(self.summary_net, 'head') or
-            hasattr(self, 'attn_pool') or
-            cfg.summary_net.arch == 'CNN'
-        )
         if cfg.use_extra_summary_mlp:
             self.extra_mlp = networks.MLP(cfg.extra_mlp)
         if cfg.use_attn_pool:
             self.attn_pool = networks.AttentiveHead(cfg.attn_pool)
+
+        self.pool_summary = not (
+            hasattr(self.summary_net, 'head') or
+            hasattr(self, 'attn_pool') or
+            cfg.summary_net.arch == 'CNN'
+        )            
 
         self.build_inn()
 
@@ -43,13 +44,15 @@ class INN(Model):
         return subnet
     
     def summarize(self, c):
-        c = self.summary_net(c)
-        if self.pool_summary:
-        # if not (hasattr(self.summary_net, 'head') or hasattr(self, 'attn_pool')):
-        # if not (hasattr(self.summary_net, 'head') or hasattr(self.summary_net, 'attn_pool')):
-            c = c.mean(1) # (B, T, D) -> (B, D)
+        
+        if not self.cfg.data.summarize:
+            c = self.summary_net(c)
+            if self.pool_summary:
+                c = c.mean(1) # (B, T, D) -> (B, D)
+
         if self.cfg.use_extra_summary_mlp:
             c = self.extra_mlp(c)
+
         if self.cfg.use_attn_pool:
             c = self.attn_pool(c)
 
@@ -113,8 +116,7 @@ class INN(Model):
             log probabilities, shape (n_events, ) if not bayesian
                                shape (1+self.bayesian_samples, n_events) if bayesian
         """
-        if not self.cfg.data.summarize:
-            c = self.summarize(c)
+        c = self.summarize(c)
         z, jac = self.inn(x, (c,))
         return self.latent_log_prob(z) + jac
 
@@ -134,9 +136,7 @@ class INN(Model):
             torch.rand if self.cfg.inn.latent_space == "uniform" else None
         )
         z = latent_sampler((c.shape[0], self.cfg.dim), dtype=c.dtype, device=c.device)    
-        
-        if not self.cfg.data.summarize:
-            c = self.summarize(c)
+        c = self.summarize(c)
 
         x, jac = self.inn(z, (c,), rev=True)
         log_prob = self.latent_log_prob(z) - jac

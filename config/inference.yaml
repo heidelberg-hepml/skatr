@@ -47,7 +47,7 @@ training:
   patience: 50
   lr: 0.0001
   batch_size: 32
-  test_batch_size: ${num_test_points}
+  test_batch_size: ${training.batch_size}
   optimizer:
     name: AdamW
     kwargs: {}

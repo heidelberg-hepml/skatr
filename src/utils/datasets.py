@@ -86,8 +86,10 @@ class SummarizedLCDataset(Dataset):
         self.ys = []
         self.summary_net = summary_net
 
-        self.pool_summary = not ( # TODO: Clean up
-            hasattr(summary_net, 'head') or exp_cfg.net.arch == 'AttentiveHead' 
+        self.pool_summary = not (
+            hasattr(summary_net, 'head') or
+            exp_cfg.net.arch == 'AttentiveHead' or
+            (hasattr(exp_cfg, 'use_attn_pool') and exp_cfg.use_attn_pool)
         )
 
         if augment:
@@ -106,11 +108,10 @@ class SummarizedLCDataset(Dataset):
             X = X.to(device)
             if augment:
                 summary = torch.stack( # collect all augmentations of X
-                    [self.summarize(x).to(dset_device) for x in aug.enumerate(X)], dim=1
+                    [self.summarize(xa).to(dset_device) for xa in aug.enumerate(X)], dim=1
                 )
             else:
                 summary = self.summarize(X).to(dset_device)
-
             self.Xs.append(summary)
 
         self.Xs = torch.vstack(self.Xs)

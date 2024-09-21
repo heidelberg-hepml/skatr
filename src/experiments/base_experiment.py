@@ -59,9 +59,10 @@ class BaseExperiment:
             tcfg = self.cfg.training
 
             augs = self.get_augmentations()
-            self.log.info(
-                f"Loaded augmentations: {', '.join([a.__class__.__name__ for a in augs])}"
-            )
+            if augs:
+                self.log.info(
+                    f"Loaded augmentations: {', '.join([a.__class__.__name__ for a in augs])}"
+                )
 
             self.log.info('Initializing trainer')                
             trainer = Trainer(
@@ -131,31 +132,32 @@ class BaseExperiment:
         for k, d in dataset_splits.items():
             
             collate_fn = default_collate
-
+            is_trn = k=='train'
             # optionally summarize (compress) dataset
             if dcfg.summarize:
-
+                
                 if self.cfg.summary_net is None:
                     self.log.error('Asking to summarize dataset, but no summary net provided.')
                     sys.exit()
 
-                augstring = ' (with augmentaitons) ' if tcfg.augment and k=='train' else ' '
+                augment = tcfg.augment and is_trn # only augment training split
+                augstring = ' (with augmentations) ' if augment else ' '
                 self.log.info(
                     f'Summarizing {k} split{augstring}with batch size {dcfg.summary_batch_size}.'
                 )
 
                 dataset_splits[k] = SummarizedLCDataset(
                     d, summary_net=self.model.summary_net, device=self.device, exp_cfg=self.cfg,
-                    dataset_cfg=dcfg, augment=tcfg.augment and k=='train', # only augment training split
+                    dataset_cfg=dcfg, augment=augment
                 )
 
-                if tcfg.augment and k=='train':
+                if augment:
                     # select one augmentation per batch
                     collate_fn = dataset_splits[k].collate_fn
 
-            batch_size = tcfg.batch_size if k=='train' else tcfg.test_batch_size
+            batch_size = tcfg.batch_size if is_trn else tcfg.test_batch_size
             dataloaders[k] = DataLoader(
-                dataset_splits[k], shuffle=k=='train', drop_last=k=='train', batch_size=batch_size,
+                dataset_splits[k], shuffle=is_trn, drop_last=is_trn, batch_size=batch_size,
                 collate_fn=collate_fn,
                 pin_memory=False, # pinning can cause memory issues with large lightcones
                 num_workers=num_cpus # parallel loading from GPU causes CUDA error
