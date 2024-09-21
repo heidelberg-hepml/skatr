@@ -6,7 +6,7 @@ from matplotlib import gridspec
 from matplotlib.backends.backend_pdf import PdfPages
 
 from src.experiments.base_experiment import BaseExperiment
-from src.models import Regressor
+from src.models import Regressor, GaussianRegressor
 from src.utils import datasets
 from src.utils.plotting import PARAM_NAMES
 
@@ -20,7 +20,7 @@ class RegressionExperiment(BaseExperiment):
             return datasets.LCDataset(self.cfg.data, directory, self.device, preprocessing=prep)
 
     def get_model(self):
-        return Regressor(self.cfg)
+        return (GaussianRegressor if self.cfg.gaussian else Regressor)(self.cfg) 
     
     def plot(self):
         
@@ -60,7 +60,10 @@ class RegressionExperiment(BaseExperiment):
                 ratio_ax = plt.subplot(grid[1])    
 
                 # unpack labels/preds and calculate metric
-                labels, preds = label_pred_pairs[:, i].T
+                if self.cfg.gaussian:
+                    labels, preds, vars = label_pred_pairs[:, i].T
+                else:
+                    labels, preds = label_pred_pairs[:, i].T
 
                 # digitize data
                 num_bins = 40
@@ -74,12 +77,18 @@ class RegressionExperiment(BaseExperiment):
                 mare_partitions = [mares[bin_idcs==i+1] for i in range(num_bins)]
                 MARE = mares.mean()
                 
+                if self.cfg.gaussian:
+                    errs = [np.sqrt(vars[bin_idcs==i+1])*(hi-lo) for i in range(num_bins)]
+                    errs = list(map(np.mean, errs))
+                else:
+                    errs = list(map(np.std, partitions))
+
                 # fill main axis
                 pad = 0.04*(hi-lo)
                 main_ax.plot([lo-pad, hi+pad], [lo-pad, hi+pad], **ref_kwargs)
                 main_ax.errorbar(
                     bin_centers, list(map(np.mean, partitions)),
-                    yerr=list(map(np.std, partitions)), **err_kwargs
+                    yerr=errs, **err_kwargs
                 )
                 main_ax.text(0.1, 0.9, f"{MARE=:.1e}", transform=main_ax.transAxes)
 
@@ -125,12 +134,18 @@ class RegressionExperiment(BaseExperiment):
         self.model.eval()
 
         # get truth targets and predictions across the test set
-        labels, preds = [], []
+        labels, preds, stds = [], [], []
         for x, y in dataloaders['test']:
 
             # predict
             x = x.to(self.device, self.dtype_train)
-            pred = self.model.predict(x).detach().cpu()
+            
+            if self.cfg.gaussian:
+                pred, std = self.model.predict(x)
+                pred = pred.detach().cpu()
+                std = std.detach().cpu()
+            else:
+                pred = self.model.predict(x).detach().cpu()
 
             # postprocess output
             for transform in reversed(self.preprocessing['y']):
@@ -140,12 +155,23 @@ class RegressionExperiment(BaseExperiment):
             # append prediction
             preds.append(pred.numpy())
             labels.append(y.cpu().numpy())
+            if self.cfg.gaussian:
+                stds.append(std.numpy())
 
         # stack results
         labels = np.vstack(labels)
         preds = np.vstack(preds)
-        
+        if self.cfg.gaussian:
+            stds = np.vstack(stds)
+
         # save results
+        savearrs = [labels, preds]
+        if self.cfg.gaussian:
+            savearrs.append(stds)
+
+            for a in savearrs:
+                print(a.shape)
+
         savepath = os.path.join(self.exp_dir, 'label_pred_pairs.npy')
         self.log.info(f'Saving label/prediction pairs to {savepath}')
-        np.save(savepath, np.stack([labels, preds], axis=-1))
+        np.save(savepath, np.stack(savearrs, axis=-1))
