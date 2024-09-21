@@ -34,3 +34,12 @@ adaptor:
   replace_embedding: False
   batchnorm: False
   init_pool_as_mean: False
+
+use_input_conv: False
+input_conv:
+  channels: 8
+  kernel1: [4,4,5]
+  stride1: [2,2,3]
+  kernel2: [3, 3, 4]
+  stride2: [2, 2, 3]
+  conv_out_dim: 640

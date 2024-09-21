@@ -9,12 +9,12 @@ head:
   _target_: src.networks.MLP
   cfg:
     units:
-      - ${net.hidden_dim}
-      - ${net.hidden_dim}
-      - ${net.out_channels}
+      - 144
+      - 144
+      - 6
     act: relu
-    out_act: ${net.out_act}
-    drop: ${net.mlp_drop}
+    out_act: sigmoid
+    drop: 0.
 
 adapt_res: False
 adaptor:
@@ -22,3 +22,12 @@ adaptor:
   downsample_factor: 5
   extra_proj: True
   replace_embedding: False
+
+use_input_conv: False
+input_conv:
+  channels: 8
+  kernel1: [4,4,5]
+  stride1: [2,2,3]
+  kernel2: [3, 3, 4]
+  stride2: [2, 2, 3]
+  conv_out_dim: 640  

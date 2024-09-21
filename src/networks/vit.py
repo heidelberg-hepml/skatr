@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from einops import rearrange, repeat
+from einops.layers.torch import Rearrange
 from functools import partial
 from hydra.utils import instantiate
 from torch.utils.checkpoint import checkpoint
@@ -58,6 +59,8 @@ class ViT(nn.Module):
             self.init_head(cfg.head)
         if cfg.adapt_res:
             self.init_adaptor(cfg.adaptor)
+        if cfg.use_input_conv:
+            self.init_input_conv(cfg.input_conv)
         if self.cfg.use_mask_token:
             self.mask_token = nn.Parameter(torch.randn(dim))
 
@@ -83,6 +86,27 @@ class ViT(nn.Module):
         self.adaptor = nn.Sequential(pool)
         if use_relu: self.adaptor.append(nn.ReLU())
         if cfg.batchnorm: self.adaptor.append(nn.BatchNorm3d(cfg.channels))
+
+    def init_input_conv(self, cfg):
+        
+        # downsampling conv
+        self.input_conv = nn.Sequential(
+            Rearrange(
+                'b c (nx p1) (ny p2) (nz p3) -> (b nx ny nz) c p1 p2 p3',
+                **dict(zip(('nx', 'ny', 'nz'), self.num_patches))
+            ),
+            nn.Conv3d(1,  cfg.channels, cfg.kernel1, cfg.stride1),
+            nn.ReLU(),
+            nn.BatchNorm3d(cfg.channels),
+            nn.Conv3d(cfg.channels,  cfg.channels, cfg.kernel2, cfg.stride2),
+            nn.ReLU(),
+            nn.BatchNorm3d(cfg.channels),
+            Rearrange(
+                '(b nx ny nz) c X Y Z -> b (nx ny nz) (c X Y Z)',
+                **dict(zip(('nx', 'ny', 'nz'), self.num_patches))
+            ),
+            nn.Linear(cfg.conv_out_dim, self.cfg.hidden_dim)
+        )
 
     def init_pos_grid(self, axis_sizes):
         self.num_patches = [s // p for s, p in zip(axis_sizes, self.cfg.patch_shape)]
@@ -111,20 +135,21 @@ class ViT(nn.Module):
         :param mask: a tensor of patch indices that should be masked out of `x`.
         """
 
-        # if hasattr(self, 'conv'):
-        #     x = self.conv(x)
         if hasattr(self, 'adaptor'):
             x = self.adaptor(x)
-            
-        # patchify input
-        # x -> (batch_size, number_of_patches, voxels_per_patch)
-        x = self.to_patches(x)
         
-        # embed
-        # x -> (batch_size, number_of_patches, embedding_dim)
-        if hasattr(self, 'extra_proj'):
-            x = self.extra_proj(x)
-        x = self.embedding(x)
+        if hasattr(self, 'input_conv'):
+            x = self.input_conv(x)
+        else:
+            # patchify input
+            # x -> (batch_size, number_of_patches, voxels_per_patch)
+            x = self.to_patches(x)
+            
+            # embed
+            # x -> (batch_size, number_of_patches, embedding_dim)
+            if hasattr(self, 'extra_proj'):
+                x = self.extra_proj(x)
+            x = self.embedding(x)
 
         # apply mask and position encoding
         if self.cfg.use_mask_token:
@@ -356,6 +381,8 @@ class PretrainedViT(ViT):
             self.head = instantiate(cfg.head)
         if cfg.adapt_res:
             self.init_adaptor(cfg.adaptor)
+        if cfg.use_input_conv:
+            self.init_input_conv(cfg.input_conv)            
         if cfg.interp_pos_encoding:
             self.bb.init_pos_grid(cfg.data_shape)              
 
