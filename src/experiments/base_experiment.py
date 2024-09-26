@@ -174,12 +174,14 @@ class BaseExperiment:
         return augs
     
     def log_resources(self):
-        max_mem_gpu = torch.cuda.max_memory_allocated(self.device)
-        tot_mem_gpu = torch.cuda.mem_get_info(self.device)[1]
-        GB = 1024**3
-        self.log.info(
-            f"Peak GPU RAM usage: {max_mem_gpu/GB:.3} GB (of {tot_mem_gpu/GB:.3} GB available)"
-        )
+        if self.cfg.use_gpu:
+            max_mem_gpu = torch.cuda.max_memory_allocated(self.device)
+            tot_mem_gpu = torch.cuda.mem_get_info(self.device)[1]
+            GB = 1024**3
+            self.log.info(
+                f"Peak GPU RAM usage: {max_mem_gpu/GB:.3} GB (of {tot_mem_gpu/GB:.3} GB available)"
+            )
+        
         max_ram = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
         self.log.info(
             f"Peak system RAM usage: {max_ram/1024**2:.3} GB"
