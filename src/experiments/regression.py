@@ -61,7 +61,7 @@ class RegressionExperiment(BaseExperiment):
 
                 # unpack labels/preds and calculate metric
                 if self.cfg.gaussian:
-                    labels, preds, vars = label_pred_pairs[:, i].T
+                    labels, preds, sigmas = label_pred_pairs[:, i].T
                 else:
                     labels, preds = label_pred_pairs[:, i].T
 
@@ -78,11 +78,11 @@ class RegressionExperiment(BaseExperiment):
                 MARE = mares.mean()
                 
                 if self.cfg.gaussian:
-                    errs = [np.sqrt(vars[bin_idcs==i+1])*(hi-lo) for i in range(num_bins)]
+                    errs = [sigmas[bin_idcs==i+1]*(hi-lo) for i in range(num_bins)]
                     errs = list(map(np.mean, errs))
                 else:
                     errs = list(map(np.std, partitions))
-
+                    
                 # fill main axis
                 pad = 0.04*(hi-lo)
                 main_ax.plot([lo-pad, hi+pad], [lo-pad, hi+pad], **ref_kwargs)

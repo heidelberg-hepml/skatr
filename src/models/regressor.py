@@ -37,37 +37,30 @@ class GaussianRegressor(Regressor):
 
     def __init__(self, cfg):
         super().__init__(cfg)
-        self.novar_frac = cfg.novar_frac
-        self.stopvar = int(bool(self.novar_frac))
+        self.const_sigma_frac = cfg.const_sigma_frac
+        self.stop_sigma = int(bool(self.const_sigma_frac))
 
     def batch_loss(self, batch):
+        
         x, y = batch
         
-        logit_mean, invsp_var = self(x)
-        
-        mean = F.sigmoid(logit_mean)
-        var = F.softplus(invsp_var)
-
-        # optionally disable variance
-        # logvar = (1-self.stopvar) * logvar
-        var = (1-self.stopvar) * var + self.stopvar / 100
-        
+        mu, sigma = self(x)
+        # optionally fix sigma constant
+        sigma = (1-self.stop_sigma) * sigma + self.stop_sigma
         # gaussian likelihood
-        # loss = (y - mean)**2 / (2*logvar.exp()) + 0.5*logvar
-        loss = (y - mean)**2 / (2*var) + 0.5*var.log()
+        loss = 0.5 * ((y - mu) / sigma)**2 + sigma.log()
             
         return loss.mean()
 
     def forward(self, x):
-        logit_mean, invsp_var = super().forward(x).tensor_split(2, dim=-1)
-        return logit_mean, invsp_var
+        logit_mu, invsp_sig = super().forward(x).tensor_split(2, dim=-1)
+        mu = F.sigmoid(logit_mu)
+        sigma = F.softplus(invsp_sig)
+        return mu, sigma
 
     @torch.inference_mode()
     def predict(self, x):
-        logit_mean, invsp_var = self(x)
-        mean = F.sigmoid(logit_mean)
-        var = F.softplus(invsp_var)
-        return mean, var
+        return self(x)
 
     def update(self, optimizer, loss, step=None, total_steps=None):
         
@@ -75,5 +68,5 @@ class GaussianRegressor(Regressor):
         super().update(optimizer, loss)
 
         # enable variance
-        if step/total_steps >= self.novar_frac:
-            self.stopvar = 0.
+        if step/total_steps >= self.const_sigma_frac:
+            self.stop_sigma = 0.
