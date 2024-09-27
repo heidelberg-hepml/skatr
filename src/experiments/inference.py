@@ -5,8 +5,9 @@ import numpy as np
 import os
 import torch
 from getdist import plots, MCSamples
-from itertools import batched, combinations
+from itertools import combinations
 from matplotlib.backends.backend_pdf import PdfPages
+from torch.utils.data import DataLoader
 
 from src.experiments.base_experiment import BaseExperiment
 from src.models import ConditionalFlowMatcher, INN
@@ -122,7 +123,7 @@ class InferenceExperiment(BaseExperiment):
         alongside truth parameter values.
         """
 
-        assert self.cfg.num_test_points <= self.cfg.data.test_batch_size
+        assert self.cfg.num_test_points <= self.cfg.training.test_batch_size
 
         # initialize containers
         posterior_samples, posterior_logprobs, param_logprobs = [], [], []
@@ -136,7 +137,7 @@ class InferenceExperiment(BaseExperiment):
         params = params[:self.cfg.num_test_points].to(self.device, self.dtype_train)
 
         # loop over test lcs in batches
-        for lc_batch in batched(test_lcs, self.cfg.sample_batch_size):
+        for lc_batch in DataLoader(test_lcs, self.cfg.sample_batch_size):
             
             # move batch to gpu
             lc_batch = lc_batch.to(self.device, self.dtype_train)
