@@ -1,9 +1,10 @@
 import logging
 import resource
+import sys
 import torch
 from abc import abstractmethod
 from hydra.utils import instantiate
-from torch.utils.data import DataLoader, random_split, Subset
+from torch.utils.data import DataLoader, Subset, default_collate, random_split
 
 from src.utils import augmentations
 from src.utils.datasets import SummarizedLCDataset
@@ -35,6 +36,7 @@ class BaseExperiment:
         }
         self.log.info(f'Loaded preprocessing dict: {transform_names}')
 
+
     def run(self):
         
         self.log.info('Initializing model')
@@ -57,9 +59,10 @@ class BaseExperiment:
             tcfg = self.cfg.training
 
             augs = self.get_augmentations()
-            self.log.info(
-                f"Loaded augmentations: {', '.join([a.__class__.__name__ for a in augs])}"
-            )
+            if augs:
+                self.log.info(
+                    f"Loaded augmentations: {', '.join([a.__class__.__name__ for a in augs])}"
+                )
 
             self.log.info('Initializing trainer')                
             trainer = Trainer(
@@ -81,21 +84,13 @@ class BaseExperiment:
             self.log.info('Making plots')
             self.plot()
 
-        # TODO: place in `log_resources` method
-        max_mem_gpu = torch.cuda.max_memory_allocated(self.device)
-        tot_mem_gpu = torch.cuda.mem_get_info(self.device)[1]
-        GB = 1024**3
-        self.log.info(
-            f"Peak GPU RAM usage: {max_mem_gpu/GB:.3} GB (of {tot_mem_gpu/GB:.3} GB available)"
-        )
-        max_ram = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-        self.log.info(
-            f"Peak system RAM usage: {max_ram/1024**2:.3} GB"
-        )
+        # print memory usage
+        self.log_resources()
 
     def get_dataloaders(self):
         
         dcfg = self.cfg.data
+        tcfg = self.cfg.training
         fixed_rng = torch.Generator().manual_seed(1729)
         
         # read data
@@ -136,25 +131,34 @@ class BaseExperiment:
         self.log.info(f'{num_cpus=}')
         for k, d in dataset_splits.items():
             
+            collate_fn = default_collate
+            is_trn = k=='train'
             # optionally summarize (compress) dataset
-            if self.cfg.backbone and dcfg.summarize:
+            if dcfg.summarize:
                 
-                augstring = ' (with augmentaitons) ' if self.cfg.training.augment else ' '
+                if self.cfg.summary_net is None:
+                    self.log.error('Asking to summarize dataset, but no summary net provided.')
+                    sys.exit()
+
+                augment = tcfg.augment and is_trn # only augment training split
+                augstring = ' (with augmentations) ' if augment else ' '
                 self.log.info(
                     f'Summarizing {k} split{augstring}with batch size {dcfg.summary_batch_size}.'
                 )
-                
-                # pool_summary = self.cfg.net.arch != 'AttentiveHead' # TODO: Clean up
-                dataset_splits[k] = SummarizedLCDataset( # TODO: pass cfg and dcfg
-                    d, summary_net=self.model.bb, device=self.device, exp_cfg=self.cfg,
-                    dataset_cfg=dcfg, augment=self.cfg.training.augment and k=='train', # only augment training split
+
+                dataset_splits[k] = SummarizedLCDataset(
+                    d, summary_net=self.model.summary_net, device=self.device, exp_cfg=self.cfg,
+                    dataset_cfg=dcfg, augment=augment
                 )
 
-            batch_size = (self.cfg.training.batch_size if k=='train'
-                          else self.cfg.training.test_batch_size)
+                if augment:
+                    # select one augmentation per batch
+                    collate_fn = dataset_splits[k].collate_fn
 
+            batch_size = tcfg.batch_size if is_trn else tcfg.test_batch_size
             dataloaders[k] = DataLoader(
-                dataset_splits[k], shuffle=k=='train', drop_last=k=='train', batch_size=batch_size,
+                dataset_splits[k], shuffle=is_trn, drop_last=is_trn, batch_size=batch_size,
+                collate_fn=collate_fn,
                 pin_memory=False, # pinning can cause memory issues with large lightcones
                 num_workers=num_cpus # parallel loading from GPU causes CUDA error
             )
@@ -163,11 +167,25 @@ class BaseExperiment:
     
     def get_augmentations(self):
         augs = []
-        if self.cfg.training.augment and not (self.cfg.data.summarize and self.cfg.backbone):
+        if self.cfg.training.augment and not self.cfg.data.summarize:
             for name, kwargs in self.cfg.training.augmentations.items():
                 aug = getattr(augmentations, name)(**kwargs)
                 augs.append(aug)
         return augs
+    
+    def log_resources(self):
+        if self.cfg.use_gpu:
+            max_mem_gpu = torch.cuda.max_memory_allocated(self.device)
+            tot_mem_gpu = torch.cuda.mem_get_info(self.device)[1]
+            GB = 1024**3
+            self.log.info(
+                f"Peak GPU RAM usage: {max_mem_gpu/GB:.3} GB (of {tot_mem_gpu/GB:.3} GB available)"
+            )
+        
+        max_ram = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        self.log.info(
+            f"Peak system RAM usage: {max_ram/1024**2:.3} GB"
+        )        
     
     @abstractmethod
     def get_dataset(self):

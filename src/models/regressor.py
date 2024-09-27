@@ -19,10 +19,12 @@ class Regressor(Model):
         return loss
     
     def forward(self, x):
-        if self.cfg.backbone and not self.cfg.data.summarize and not self.cfg.replace_backbone:
-            x = self.bb(x)
+        
+        if hasattr(self, 'summary_net') and not self.cfg.data.summarize:
+        
+            x = self.summary_net(x)
             # if not hasattr(self.bb, 'head') and self.net.cfg.arch == 'MLP': # weird...
-            if not hasattr(self.bb, 'head') and self.cfg.net.arch == 'MLP': #TODO: Clean
+            if not hasattr(self.summary_net, 'head') and self.cfg.net.arch == 'MLP': #TODO: Clean
                 x = x.mean(1) # (B, T, D) --> (B, D)
 
         return self.net(x)
@@ -30,3 +32,41 @@ class Regressor(Model):
     @torch.inference_mode()
     def predict(self, x):
         return self.forward(x)
+
+class GaussianRegressor(Regressor):
+
+    def __init__(self, cfg):
+        super().__init__(cfg)
+        self.const_sigma_frac = cfg.const_sigma_frac
+        self.stop_sigma = int(bool(self.const_sigma_frac))
+
+    def batch_loss(self, batch):
+        
+        x, y = batch
+        
+        mu, sigma = self(x)
+        # optionally fix sigma constant
+        sigma = (1-self.stop_sigma) * sigma + self.stop_sigma
+        # gaussian likelihood
+        loss = 0.5 * ((y - mu) / sigma)**2 + sigma.log()
+            
+        return loss.mean()
+
+    def forward(self, x):
+        logit_mu, invsp_sig = super().forward(x).tensor_split(2, dim=-1)
+        mu = F.sigmoid(logit_mu)
+        sigma = F.softplus(invsp_sig)
+        return mu, sigma
+
+    @torch.inference_mode()
+    def predict(self, x):
+        return self(x)
+
+    def update(self, optimizer, loss, step=None, total_steps=None):
+        
+        # default update
+        super().update(optimizer, loss)
+
+        # enable variance
+        if step/total_steps >= self.const_sigma_frac:
+            self.stop_sigma = 0.

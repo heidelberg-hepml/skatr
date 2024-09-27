@@ -1,0 +1,33 @@
+arch: PretrainedViT
+backbone_dir: runs/pretraining_micro/huge_775
+frozen: True
+drop_head: True
+interp_pos_encoding: False
+
+add_head: False
+head:
+  _target_: src.networks.MLP
+  cfg:
+    units:
+      - 144
+      - 144
+      - 6
+    act: relu
+    out_act: sigmoid
+    drop: 0.
+
+adapt_res: False
+adaptor:
+  channels: 4
+  downsample_factor: 5
+  extra_proj: True
+  replace_embedding: False
+
+use_input_conv: False
+input_conv:
+  channels: 8
+  kernel1: [4,4,5]
+  stride1: [2,2,3]
+  kernel2: [3, 3, 4]
+  stride2: [2, 2, 3]
+  conv_out_dim: 640  

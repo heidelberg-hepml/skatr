@@ -30,7 +30,7 @@ class RotateAndReflect:
     
     def enumerate(self, x):
         """
-        Returns a tuple containing all transformations of the input
+        Returns a list containing all transformations of the input
 
         :param x: A tensor containing a batch of lightcones.
         """
@@ -39,13 +39,13 @@ class RotateAndReflect:
 
         # select from options
         for ref_idx, rot_idx in self.idcs:
-
+                        
             # apply transformations
-            x = torch.rot90(x, rot_idx, dims=[2,3])
+            xa = torch.rot90(x, rot_idx, dims=[2,3])
             if ref_idx:
-                x = x.transpose(2, 3)
+                xa = xa.transpose(2, 3)
 
-            outs.append(x)
+            outs.append(xa)
         
         return outs
     

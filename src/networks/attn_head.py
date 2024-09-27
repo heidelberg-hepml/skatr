@@ -17,12 +17,19 @@ class AttentiveHead(nn.Module):
             init_std=cfg.init_std,
             qkv_bias=cfg.qkv_bias,
             complete_block=cfg.complete_block,
+            use_proj=cfg.use_proj
         )
-        self.linear = nn.Linear(cfg.embed_dim, cfg.out_channels, bias=True)
+        if cfg.use_act:
+            self.act = getattr(F, cfg.act)
+        if cfg.use_linear:
+            self.linear = nn.Linear(cfg.embed_dim, cfg.out_channels, bias=True)
 
     def forward(self, x):
         x = self.pooler(x).squeeze(1)
-        x = self.linear(x)
+        if hasattr(self, 'act'):
+            x = self.act(x)
+        if hasattr(self, 'linear'):       
+            x = self.linear(x)
         return x
     
 
@@ -36,11 +43,12 @@ class AttentivePooler(nn.Module):
         norm_layer='LayerNorm',
         init_std=0.02,
         qkv_bias=True,
-        complete_block=True
+        complete_block=True,
+        use_proj=True,
     ):
         super().__init__()
         self.query_token = nn.Parameter(torch.zeros(1, 1, embed_dim))
-
+        self.use_proj = use_proj
         self.complete_block = complete_block
         if complete_block:
             self.cross_attention_block = CrossAttentionBlock(
@@ -53,7 +61,8 @@ class AttentivePooler(nn.Module):
             self.cross_attention_block = CrossAttention(
                 dim=embed_dim,
                 num_heads=num_heads,
-                qkv_bias=qkv_bias)
+                qkv_bias=qkv_bias,
+                use_proj=use_proj)
 
         self.init_std = init_std
         nn.init.trunc_normal_(self.query_token, std=self.init_std)
@@ -67,12 +76,8 @@ class AttentivePooler(nn.Module):
         if self.complete_block:
             rescale(self.cross_attention_block.xattn.proj.weight.data, 1)
             rescale(self.cross_attention_block.mlp.fc2.weight.data, 1)
-        else:
+        elif self.use_proj:
             rescale(self.cross_attention_block.proj.weight.data, 1)
-        # if self.blocks is not None:
-        #     for layer_id, layer in enumerate(self.blocks, 1):
-        #         rescale(layer.attn.proj.weight.data, layer_id + 1)
-        #         rescale(layer.mlp.fc2.weight.data, layer_id + 1)
 
     def _init_weights(self, m):
         if isinstance(m, nn.Linear):
@@ -100,7 +105,8 @@ class CrossAttention(nn.Module):
         dim,
         num_heads=6,
         qkv_bias=False,
-        use_sdpa=True
+        use_sdpa=True,
+        use_proj=True
     ):
         super().__init__()
         self.num_heads = num_heads
@@ -108,8 +114,9 @@ class CrossAttention(nn.Module):
         self.scale = head_dim ** -0.5
         self.q = nn.Linear(dim, dim, bias=qkv_bias)
         self.kv = nn.Linear(dim, int(dim*2), bias=qkv_bias)
-        self.proj = nn.Linear(dim, dim)
         self.use_sdpa = use_sdpa
+        if use_proj:
+            self.proj = nn.Linear(dim, dim)
 
     def forward(self, q, x):
         B, n, C = q.shape
@@ -128,8 +135,9 @@ class CrossAttention(nn.Module):
             q = (xattn @ v)
 
         q = q.transpose(1, 2).reshape(B, n, C)
-        q = self.proj(q)
-    
+        if hasattr(self, 'proj'):
+            q = self.proj(q)
+
         return q
     
     

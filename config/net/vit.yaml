@@ -33,3 +33,5 @@ adaptor:
   downsample_factor: 5
   extra_proj: True
   replace_embedding: False
+
+use_input_conv: False 

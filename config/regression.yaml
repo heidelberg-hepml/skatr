@@ -3,6 +3,7 @@ experiment: RegressionExperiment
 
 target_indices: [0,1,2,3,4,5]
 loss: l1
+gaussian: False
 
 data_shape: [140, 140, 2350]
 

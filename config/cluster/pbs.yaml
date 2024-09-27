@@ -1,5 +1,5 @@
 scheduler: pbs
-queue: h100
+queue: a30
 procs: ${num_cpus}
 mem: 24gb
 vmem: 72gb

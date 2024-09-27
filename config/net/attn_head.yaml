@@ -7,3 +7,7 @@ init_std: 0.02
 qkv_bias: True
 out_channels: 6
 complete_block: True
+use_proj: True
+use_linear: True
+use_act: False
+act: gelu
