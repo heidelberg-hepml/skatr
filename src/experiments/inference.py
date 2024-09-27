@@ -5,7 +5,7 @@ import numpy as np
 import os
 import torch
 from getdist import plots, MCSamples
-from itertools import combinations
+from itertools import batched, combinations
 from matplotlib.backends.backend_pdf import PdfPages
 
 from src.experiments.base_experiment import BaseExperiment
@@ -122,42 +122,53 @@ class InferenceExperiment(BaseExperiment):
         alongside truth parameter values.
         """
 
+        assert self.cfg.num_test_points <= self.cfg.data.test_batch_size
+
+        # initialize containers
+        posterior_samples, posterior_logprobs, param_logprobs = [], [], []
+
         # disable batchnorm updates, dropout etc.
         self.model.eval()
-        lc_batch, params = next(iter(dataloaders['test']))
-        posterior_samples, posterior_logprobs = [], []
-        
-        # preprocess lightcones and parameters
-        lc_batch = lc_batch[:self.cfg.num_test_points].to(self.device, self.dtype_train)
+
+        # pull data from the test set
+        test_lcs, params = next(iter(dataloaders['test']))
+        test_lcs = test_lcs[:self.cfg.num_test_points]
         params = params[:self.cfg.num_test_points].to(self.device, self.dtype_train)
 
-        # evaluate test param likelihoods
-        param_logprobs = self.model.log_prob(params, lc_batch).cpu()
-
-        # loop over test points
-        for i in range(self.cfg.num_test_points):
-            self.log.info(f'Sampling posterior for test point {i+1}')
+        # loop over test lcs in batches
+        for lc_batch in batched(test_lcs, self.cfg.sample_batch_size):
             
-            # select corresponding lightcone
-            lc = lc_batch[i].unsqueeze(0)
-            lc = lc.repeat(self.cfg.sample_batch_size, *[1]*(lc.ndim-1))
-
-            # sample posterior in batches
-            sample_list, logprob_list = [], []
-            for _ in range(self.cfg.num_posterior_samples//self.cfg.sample_batch_size):
-                sample, logprob = self.model.sample_batch(lc)
-                sample_list.append(sample.detach().cpu())
-                logprob_list.append(logprob.detach().cpu())
+            # move batch to gpu
+            lc_batch = lc_batch.to(self.device, self.dtype_train)
             
-            # collect samples
-            posterior_samples.append(torch.vstack(sample_list))
-            posterior_logprobs.append(torch.vstack(logprob_list))
+            # evaluate true param likelihoods
+            param_logprobs.append(self.model.log_prob(params, lc_batch).cpu())
 
-            del lc
+            # loop over test points
+            for i in range(len(lc_batch)):
+                self.log.info(f'Sampling posterior for test point {i+1}')
+                
+                # select corresponding lightcone
+                lc = lc_batch[i].unsqueeze(0)
+                lc = lc.repeat(self.cfg.sample_batch_size, *[1]*(lc.ndim-1))
 
-        # stack all samples
+                # sample posterior in batches
+                sample_list, logprob_list = [], []
+                for _ in range(self.cfg.num_posterior_samples//self.cfg.sample_batch_size):
+                    sample, logprob = self.model.sample_batch(lc)
+                    sample_list.append(sample.detach().cpu())
+                    logprob_list.append(logprob.detach().cpu())
+                
+                # collect samples
+                posterior_samples.append(torch.vstack(sample_list))
+                posterior_logprobs.append(torch.vstack(logprob_list))
+
+                del lc
+
+        # stack containers into tensors
         posterior_samples = torch.stack(posterior_samples)
         posterior_logprobs = torch.stack(posterior_logprobs)
+        param_logprobs = torch.vstack(param_logprobs)
         
         # postprocess
         params = params.cpu()
