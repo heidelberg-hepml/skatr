@@ -137,17 +137,20 @@ class InferenceExperiment(BaseExperiment):
         params = params[:self.cfg.num_test_points].to(self.device, self.dtype_train)
 
         # loop over test lcs in batches
-        for lc_batch in DataLoader(test_lcs, self.cfg.sample_batch_size):
+        for j, (lc_batch, param_batch) in enumerate(zip(
+                DataLoader(test_lcs, self.cfg.sample_batch_size),
+                DataLoader(params, self.cfg.sample_batch_size)
+            )):
             
             # move batch to gpu
             lc_batch = lc_batch.to(self.device, self.dtype_train)
             
             # evaluate true param likelihoods
-            param_logprobs.append(self.model.log_prob(params, lc_batch).cpu())
+            param_logprobs.append(self.model.log_prob(param_batch, lc_batch).cpu())
 
             # loop over test points
             for i in range(len(lc_batch)):
-                self.log.info(f'Sampling posterior for test point {i+1}')
+                self.log.info(f'Sampling posterior for test point {j*self.cfg.sample_batch_size+i+1}')
                 
                 # select corresponding lightcone
                 lc = lc_batch[i].unsqueeze(0)
