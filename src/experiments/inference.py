@@ -172,7 +172,7 @@ class InferenceExperiment(BaseExperiment):
         # stack containers into tensors
         posterior_samples = torch.stack(posterior_samples)
         posterior_logprobs = torch.stack(posterior_logprobs)
-        param_logprobs = torch.vstack(param_logprobs)
+        param_logprobs = torch.hstack(param_logprobs)
         
         # postprocess
         params = params.cpu()
