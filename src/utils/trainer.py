@@ -273,4 +273,11 @@ def ensure_device_and_dtype(x, device, dtype):
     if isinstance(x, tuple):
         return tuple(ensure_device_and_dtype(e, device, dtype) for e in x)
     else:
-        return x.to(device=device, dtype=dtype)
+        if x.device == device and x.dtype==dtype:
+            return x
+        elif x.dtype == dtype:
+            return x.to(device)
+        elif x.device == device:
+            return x.to(dtype)
+        else:
+            return x.to(device=device, dtype=dtype)
