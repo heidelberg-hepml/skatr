@@ -1,0 +1,11 @@
+arch: INN
+dim: 6
+cond_dim: 144
+num_blocks: 6
+layers_per_block: 2
+internal_size: 128
+spline_bound: 10
+num_bins: 10
+permute_soft: True
+latent_space: gaussian
+dropout: 0.
