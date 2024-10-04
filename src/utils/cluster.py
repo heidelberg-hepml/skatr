@@ -84,6 +84,6 @@ def get_submit_cmd_slurm(cfg, hcfg, overrides):
     )
     
     if ccfg.dependency is not None:
-        cmd += f"--dependency {ccfg.dependency}"
+        cmd += f" --dependency {ccfg.dependency}"
     
     return cmd
