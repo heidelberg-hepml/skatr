@@ -14,12 +14,13 @@ class INN(nn.Module):
     """
     Class implementing a standard conditional INN
     """
-    def __init__(self, cfg:DictConfig):
-        
+
+    def __init__(self, cfg: DictConfig):
+
         super().__init__()
-        
+
         self.cfg = cfg
-        
+
         permute_soft = cfg.permute_soft
         if cfg.latent_space == "gaussian":
             upper_bound = cfg.spline_bound
@@ -38,24 +39,29 @@ class INN(nn.Module):
             "right": upper_bound,
             "bottom": lower_bound,
             "top": upper_bound,
-            "permute_soft": permute_soft
+            "permute_soft": permute_soft,
         }
 
         self.bijector = ff.SequenceINN(cfg.dim)
         for _ in range(cfg.num_blocks):
             self.bijector.append(
-                RationalQuadraticSplineBlock, cond=0, cond_shape=(cfg.cond_dim,),
+                RationalQuadraticSplineBlock,
+                cond=0,
+                cond_shape=(cfg.cond_dim,),
                 # **self.get_coupling_block_kwargs()
-                **block_kwargs
+                **block_kwargs,
             )
 
     def construct_subnet(self, x_in: int, x_out: int) -> nn.Module:
         subnet = Subnet(
-            self.cfg.layers_per_block, x_in, x_out,
-            internal_size=self.cfg.internal_size, dropout=self.cfg.dropout
+            self.cfg.layers_per_block,
+            x_in,
+            x_out,
+            internal_size=self.cfg.internal_size,
+            dropout=self.cfg.dropout,
         )
         return subnet
-        
+
     def latent_log_prob(self, z: torch.Tensor) -> Union[torch.Tensor, float]:
         """
         Returns the log probability for a tensor in latent space
@@ -95,10 +101,11 @@ class INN(nn.Module):
             log_prob: log probabilites, shape (n_events, )
         """
         latent_sampler = (
-            torch.randn if self.cfg.latent_space == "gaussian" else 
-            torch.rand if self.cfg.latent_space == "uniform" else None
+            torch.randn
+            if self.cfg.latent_space == "gaussian"
+            else torch.rand if self.cfg.latent_space == "uniform" else None
         )
-        z = latent_sampler((c.shape[0], self.cfg.dim), dtype=c.dtype, device=c.device)    
+        z = latent_sampler((c.shape[0], self.cfg.dim), dtype=c.dtype, device=c.device)
 
         x, jac = self.bijector(z, (c,), rev=True)
         log_prob = self.latent_log_prob(z) - jac
@@ -124,6 +131,7 @@ class INN(nn.Module):
             z = r
         x, jac = self.bijector(z, (c,), rev=True)
         return x, -self.latent_log_prob(z) + jac
+
 
 class Subnet(nn.Module):
     """
@@ -178,6 +186,7 @@ class Subnet(nn.Module):
 
     def forward(self, x):
         return self.layers(x)
+
 
 class RationalQuadraticSplineBlock(fm.InvertibleModule):
     """
@@ -363,7 +372,7 @@ def unconstrained_rational_quadratic_spline(
     min_bin_height: float,
     min_derivative: float,
     periodic: bool = False,
-    sum_jacobian: bool = True
+    sum_jacobian: bool = True,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """
     Transform inputs using RQ splines defined by theta.
@@ -383,7 +392,9 @@ def unconstrained_rational_quadratic_spline(
     outside_interval_mask = ~inside_interval_mask
     masked_outputs = torch.zeros_like(inputs)
     masked_logabsdet = torch.zeros(
-        inputs.shape[:(1 if sum_jacobian else 2)], dtype=inputs.dtype, device=inputs.device
+        inputs.shape[: (1 if sum_jacobian else 2)],
+        dtype=inputs.dtype,
+        device=inputs.device,
     )
     masked_outputs[outside_interval_mask] = inputs[outside_interval_mask]
     masked_logabsdet[outside_interval_mask] = 0
@@ -413,11 +424,15 @@ def unconstrained_rational_quadratic_spline(
         min_derivative + math.log(2)
     )
     if periodic:
-        derivatives[...,-1] = derivatives[...,0]
-        periodic_shift = (right - left) / 2 * torch.tanh(unnormalized_derivatives[...,-1])
+        derivatives[..., -1] = derivatives[..., 0]
+        periodic_shift = (
+            (right - left) / 2 * torch.tanh(unnormalized_derivatives[..., -1])
+        )
 
         if not rev:
-            inputs = torch.remainder(inputs + periodic_shift - left, right - left) + left
+            inputs = (
+                torch.remainder(inputs + periodic_shift - left, right - left) + left
+            )
             infi = inputs[(inputs < left) | (inputs > right) | ~torch.isfinite(inputs)]
             if len(infi) > 0:
                 print(infi)
@@ -463,7 +478,9 @@ def unconstrained_rational_quadratic_spline(
         root = (2 * c) / (-b - torch.sqrt(discriminant))
         outputs = root * input_bin_widths + input_cumwidths
         if periodic:
-            outputs = torch.remainder(outputs - periodic_shift - left, right - left) + left
+            outputs = (
+                torch.remainder(outputs - periodic_shift - left, right - left) + left
+            )
 
         theta_one_minus_theta = root * (1 - root)
         denominator = input_delta + (
@@ -505,8 +522,9 @@ def unconstrained_rational_quadratic_spline(
 
     return masked_outputs, masked_logabsdet
 
+
 def searchsorted(
     bin_locations: torch.Tensor, inputs: torch.Tensor, eps: float = 1e-6
 ) -> torch.Tensor:
     bin_locations[..., -1] += eps
-    return torch.sum(inputs[..., None] >= bin_locations, dim=-1) - 1    
+    return torch.sum(inputs[..., None] >= bin_locations, dim=-1) - 1

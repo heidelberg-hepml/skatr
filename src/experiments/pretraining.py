@@ -4,8 +4,9 @@ from src import models
 from src.experiments.base_experiment import BaseExperiment
 from src.utils import datasets
 
+
 class PretrainingExperiment(BaseExperiment):
-    
+
     def get_dataset(self, directory):
         prep = self.preprocessing
         if self.cfg.data.file_by_file:
@@ -14,16 +15,20 @@ class PretrainingExperiment(BaseExperiment):
             )
         else:
             return datasets.LCDataset(
-                self.cfg.data, directory, self.device, preprocessing=prep, use_labels=False
+                self.cfg.data,
+                directory,
+                self.device,
+                preprocessing=prep,
+                use_labels=False,
             )
 
     def get_model(self):
         model_cls = getattr(models, self.cfg.model)
         return model_cls(self.cfg)
-    
+
     def plot(self):
         raise NotImplementedError
-    
+
     @torch.inference_mode()
     def evaluate(self, dataloaders):
         """Use the pretrained summary to compress the chosen dataset"""

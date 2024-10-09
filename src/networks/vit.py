@@ -12,6 +12,7 @@ from torch.utils.checkpoint import checkpoint
 from src.utils import masks
 from src.utils.config import get_prev_config
 
+
 class ViT(nn.Module):
     """
     A vision transformer network.
@@ -28,28 +29,36 @@ class ViT(nn.Module):
 
         # check consistency of arguments
         check_shapes(cfg)
-        
+
         # embedding layer
         self.patch_dim = math.prod(cfg.patch_shape) * in_channels
         self.embedding = nn.Linear(self.patch_dim, dim)
 
         # position encoding
-        fourier_dim = dim // 6 # sin/cos features for each dim
+        fourier_dim = dim // 6  # sin/cos features for each dim
         w = torch.arange(fourier_dim) / (fourier_dim - 1)
-        w = (1. / (10_000 ** w)).repeat(3)
+        w = (1.0 / (10_000**w)).repeat(3)
         self.pos_encoding_freqs = nn.Parameter(
-            w.log() if cfg.learn_pos_encoding else w, requires_grad=cfg.learn_pos_encoding
+            w.log() if cfg.learn_pos_encoding else w,
+            requires_grad=cfg.learn_pos_encoding,
         )
         self.init_pos_grid(axis_sizes)
 
         # transformer stack
-        self.blocks = nn.ModuleList([
-            Block(
-                dim, cfg.num_heads, mlp_ratio=cfg.mlp_ratio, mlp_drop=cfg.mlp_drop,
-                checkpoint_grads=cfg.checkpoint_grads, attn_drop=cfg.attn_drop,
-                proj_drop=cfg.proj_drop
-            ) for _ in range(cfg.depth)
-        ])
+        self.blocks = nn.ModuleList(
+            [
+                Block(
+                    dim,
+                    cfg.num_heads,
+                    mlp_ratio=cfg.mlp_ratio,
+                    mlp_drop=cfg.mlp_drop,
+                    checkpoint_grads=cfg.checkpoint_grads,
+                    attn_drop=cfg.attn_drop,
+                    proj_drop=cfg.proj_drop,
+                )
+                for _ in range(cfg.depth)
+            ]
+        )
 
         # norm layer
         self.out_norm = nn.LayerNorm(dim, eps=1e-6)
@@ -68,54 +77,58 @@ class ViT(nn.Module):
         self.head = instantiate(cfg)
 
     def init_adaptor(self, cfg):
-        
+
         # downsampling conv
-        pool = nn.Conv3d(1,  cfg.channels, cfg.downsample_factor, cfg.downsample_factor)
+        pool = nn.Conv3d(1, cfg.channels, cfg.downsample_factor, cfg.downsample_factor)
         if cfg.init_pool_as_mean:
-            nn.init.constant_(pool.weight, 1/cfg.downsample_factor**3)
-            nn.init.constant_(pool.bias, 0.)
-        
+            nn.init.constant_(pool.weight, 1 / cfg.downsample_factor**3)
+            nn.init.constant_(pool.bias, 0.0)
+
         use_relu = True
         if cfg.replace_embedding:
-            self.embedding = nn.Linear(cfg.channels * self.patch_dim, self.cfg.hidden_dim)
+            self.embedding = nn.Linear(
+                cfg.channels * self.patch_dim, self.cfg.hidden_dim
+            )
         elif cfg.extra_proj:
             self.extra_proj = nn.Linear(cfg.channels * self.patch_dim, self.patch_dim)
         else:
             use_relu = False
-    
+
         self.adaptor = nn.Sequential(pool)
-        if use_relu: self.adaptor.append(nn.ReLU())
-        if cfg.batchnorm: self.adaptor.append(nn.BatchNorm3d(cfg.channels))
+        if use_relu:
+            self.adaptor.append(nn.ReLU())
+        if cfg.batchnorm:
+            self.adaptor.append(nn.BatchNorm3d(cfg.channels))
 
     def init_input_conv(self, cfg):
-        
+
         # downsampling conv
         self.input_conv = nn.Sequential(
             Rearrange(
-                'b c (nx p1) (ny p2) (nz p3) -> (b nx ny nz) c p1 p2 p3',
-                **dict(zip(('nx', 'ny', 'nz'), self.num_patches))
+                "b c (nx p1) (ny p2) (nz p3) -> (b nx ny nz) c p1 p2 p3",
+                **dict(zip(("nx", "ny", "nz"), self.num_patches)),
             ),
-            nn.Conv3d(1,  cfg.channels, cfg.kernel1, cfg.stride1),
+            nn.Conv3d(1, cfg.channels, cfg.kernel1, cfg.stride1),
             nn.ReLU(),
             nn.BatchNorm3d(cfg.channels),
-            nn.Conv3d(cfg.channels,  cfg.channels, cfg.kernel2, cfg.stride2),
+            nn.Conv3d(cfg.channels, cfg.channels, cfg.kernel2, cfg.stride2),
             nn.ReLU(),
             nn.BatchNorm3d(cfg.channels),
             Rearrange(
-                '(b nx ny nz) c X Y Z -> b (nx ny nz) (c X Y Z)',
-                **dict(zip(('nx', 'ny', 'nz'), self.num_patches))
+                "(b nx ny nz) c X Y Z -> b (nx ny nz) (c X Y Z)",
+                **dict(zip(("nx", "ny", "nz"), self.num_patches)),
             ),
-            nn.Linear(cfg.conv_out_dim, self.cfg.hidden_dim)
+            nn.Linear(cfg.conv_out_dim, self.cfg.hidden_dim),
         )
 
     def init_pos_grid(self, axis_sizes):
         self.num_patches = [s // p for s, p in zip(axis_sizes, self.cfg.patch_shape)]
-        for i, n in enumerate(self.num_patches): # axis values for each dim
-            self.register_buffer(f'grid_{i}', torch.arange(n)*(2*math.pi/n))
+        for i, n in enumerate(self.num_patches):  # axis values for each dim
+            self.register_buffer(f"grid_{i}", torch.arange(n) * (2 * math.pi / n))
 
-    def pos_encoding(self): # TODO: Simplify for fixed dim=3
-        grids = [getattr(self, f'grid_{i}') for i in range(3)]
-        coords = torch.meshgrid(*grids, indexing='ij')
+    def pos_encoding(self):  # TODO: Simplify for fixed dim=3
+        grids = [getattr(self, f"grid_{i}") for i in range(3)]
+        coords = torch.meshgrid(*grids, indexing="ij")
 
         if self.cfg.learn_pos_encoding:
             freqs = self.pos_encoding_freqs.exp().chunk(3)
@@ -123,8 +136,9 @@ class ViT(nn.Module):
             freqs = self.pos_encoding_freqs.chunk(3)
 
         features = [
-            trig_fn(x.flatten()[:,None] * w[None, :])
-            for (x, w) in zip(coords, freqs) for trig_fn in (torch.sin, torch.cos)
+            trig_fn(x.flatten()[:, None] * w[None, :])
+            for (x, w) in zip(coords, freqs)
+            for trig_fn in (torch.sin, torch.cos)
         ]
         return torch.cat(features, dim=1)
 
@@ -135,19 +149,19 @@ class ViT(nn.Module):
         :param mask: a tensor of patch indices that should be masked out of `x`.
         """
 
-        if hasattr(self, 'adaptor'):
+        if hasattr(self, "adaptor"):
             x = self.adaptor(x)
-        
-        if hasattr(self, 'input_conv'):
+
+        if hasattr(self, "input_conv"):
             x = self.input_conv(x)
         else:
             # patchify input
             # x -> (batch_size, number_of_patches, voxels_per_patch)
             x = self.to_patches(x)
-            
+
             # embed
             # x -> (batch_size, number_of_patches, embedding_dim)
-            if hasattr(self, 'extra_proj'):
+            if hasattr(self, "extra_proj"):
                 x = self.extra_proj(x)
             x = self.embedding(x)
 
@@ -161,13 +175,13 @@ class ViT(nn.Module):
             x = x + self.pos_encoding()
             if mask is not None:
                 x = masks.gather_tokens(x, mask)
-        
+
         # process patches with transformer blocks
         for block in self.blocks:
             x = block(x)
         x = self.out_norm(x)
 
-        if hasattr(self, 'head'):
+        if hasattr(self, "head"):
             # aggregate patch features and apply task head
             # x -> (batch_size, out_channels)
             x = torch.mean(x, axis=1)
@@ -177,8 +191,9 @@ class ViT(nn.Module):
 
     def to_patches(self, x):
         x = rearrange(
-            x, 'b c (x p1) (y p2) (z p3) -> b (x y z) (p1 p2 p3 c)',
-            **dict(zip(('p1', 'p2', 'p3'), self.patch_shape))
+            x,
+            "b c (x p1) (y p2) (z p3) -> b (x y z) (p1 p2 p3 c)",
+            **dict(zip(("p1", "p2", "p3"), self.patch_shape)),
         )
         return x
 
@@ -190,10 +205,10 @@ class ViT(nn.Module):
         :param mask: tensor with shape (B, T) containing indices in the range [0,T)
         """
         B, T = x.shape[:2]
-        full_mask_token = repeat(self.mask_token, 'd -> b t d', b=B, t=T)
+        full_mask_token = repeat(self.mask_token, "d -> b t d", b=B, t=T)
         # construct boolean mask
         mask = torch.zeros((B, T), device=x.device).scatter_(-1, mask_idcs, 1).bool()
-        return torch.where(mask[..., None], full_mask_token, x)          
+        return torch.where(mask[..., None], full_mask_token, x)
 
 
 class PredictorViT(ViT):
@@ -206,55 +221,66 @@ class PredictorViT(ViT):
         self.embedding = nn.Linear(cfg.in_dim, cfg.hidden_dim)
         self.out_proj = nn.Linear(cfg.hidden_dim, cfg.in_dim)
 
-
     def forward(self, ctx, ctx_mask, tgt_mask):
         """
         :param ctx: tokens from context block
         :param ctx_mask: mask corresponding to context block (for pos encoding)
         :param tgt_mask: mask corresponding to target block (for pos encoding)
         """
-        
-        B, N_ctx, D = ctx.shape # batch size, num context patches, context dim
-        T = math.prod(self.num_patches) # total patches (before masking)
-        
-        pos_encoding = repeat(self.pos_encoding(), 't d -> b t d', b=B)
+
+        B, N_ctx, D = ctx.shape  # batch size, num context patches, context dim
+        T = math.prod(self.num_patches)  # total patches (before masking)
+
+        pos_encoding = repeat(self.pos_encoding(), "t d -> b t d", b=B)
 
         # embed context tokens to own hidden dim
         ctx = self.embedding(ctx)
-        ctx = ctx + masks.gather_tokens(pos_encoding, ctx_mask) # TODO: Correct? or different pos encoding needed?
+        ctx = ctx + masks.gather_tokens(
+            pos_encoding, ctx_mask
+        )  # TODO: Correct? or different pos encoding needed?
 
         # prepare target prediction tokens
-        tgt = repeat(self.mask_token, 'd -> b t d', b=B, t=T) # repeat to full shape
-        tgt = tgt + pos_encoding # add position encodings
-        tgt = masks.gather_tokens(tgt, tgt_mask) # only keep tokens in target block
+        tgt = repeat(self.mask_token, "d -> b t d", b=B, t=T)  # repeat to full shape
+        tgt = tgt + pos_encoding  # add position encodings
+        tgt = masks.gather_tokens(tgt, tgt_mask)  # only keep tokens in target block
 
         # concatenate
         prd = torch.cat([ctx, tgt], dim=1)
-        
+
         # process patches with transformer blocks
         for block in self.blocks:
             prd = block(prd)
         prd = self.out_norm(prd)
 
-        prd = prd[:, N_ctx:] # select output tokens in target block
-        prd = self.out_proj(prd) # project back to full dimensions
+        prd = prd[:, N_ctx:]  # select output tokens in target block
+        prd = self.out_proj(prd)  # project back to full dimensions
 
         return prd
 
+
 class Block(nn.Module):
     def __init__(
-            self, hidden_size, num_heads, mlp_ratio=4.0, mlp_drop=0., checkpoint_grads=False,
-            **attn_kwargs
-        ):
+        self,
+        hidden_size,
+        num_heads,
+        mlp_ratio=4.0,
+        mlp_drop=0.0,
+        checkpoint_grads=False,
+        **attn_kwargs,
+    ):
         super().__init__()
         self.norm1 = nn.LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
-        self.attn = Attention(hidden_size, num_heads=num_heads, qkv_bias=True, **attn_kwargs)
+        self.attn = Attention(
+            hidden_size, num_heads=num_heads, qkv_bias=True, **attn_kwargs
+        )
         self.norm2 = nn.LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
         mlp_hidden_dim = int(hidden_size * mlp_ratio)
         approx_gelu = lambda: nn.GELU(approximate="tanh")
         self.mlp = Mlp(
-            in_features=hidden_size, hidden_features=mlp_hidden_dim, act_layer=approx_gelu,
-            drop=mlp_drop
+            in_features=hidden_size,
+            hidden_features=mlp_hidden_dim,
+            act_layer=approx_gelu,
+            drop=mlp_drop,
         )
         self.checkpoint_grads = checkpoint_grads
 
@@ -265,25 +291,25 @@ class Block(nn.Module):
             x = x + self.attn(self.norm1(x))
         x = x + self.mlp(self.norm2(x))
         return x
-    
+
 
 class Attention(nn.Module):
 
     def __init__(
-            self,
-            dim: int,
-            num_heads: int = 8,
-            qkv_bias: bool = False,
-            qk_norm: bool = False,
-            attn_drop: float = 0.,
-            proj_drop: float = 0.,
-            norm_layer: nn.Module = nn.LayerNorm,
+        self,
+        dim: int,
+        num_heads: int = 8,
+        qkv_bias: bool = False,
+        qk_norm: bool = False,
+        attn_drop: float = 0.0,
+        proj_drop: float = 0.0,
+        norm_layer: nn.Module = nn.LayerNorm,
     ) -> None:
         super().__init__()
-        assert dim % num_heads == 0, 'dim should be divisible by num_heads'
+        assert dim % num_heads == 0, "dim should be divisible by num_heads"
         self.num_heads = num_heads
         self.head_dim = dim // num_heads
-        self.scale = self.head_dim ** -0.5
+        self.scale = self.head_dim**-0.5
 
         self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias)
         self.q_norm = norm_layer(self.head_dim) if qk_norm else nn.Identity()
@@ -294,34 +320,40 @@ class Attention(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         B, N, C = x.shape
-        qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, self.head_dim).permute(2, 0, 3, 1, 4)
+        qkv = (
+            self.qkv(x)
+            .reshape(B, N, 3, self.num_heads, self.head_dim)
+            .permute(2, 0, 3, 1, 4)
+        )
         q, k, v = qkv.unbind(0)
         q, k = self.q_norm(q), self.k_norm(k)
 
         x = F.scaled_dot_product_attention(
-            q, k, v,
-            dropout_p=self.attn_drop.p if self.training else 0.,
+            q,
+            k,
+            v,
+            dropout_p=self.attn_drop.p if self.training else 0.0,
         )
 
         x = x.transpose(1, 2).reshape(B, N, C)
         x = self.proj(x)
         x = self.proj_drop(x)
         return x
-    
+
 
 class Mlp(nn.Module):
-    """ MLP as used in Vision Transformer, MLP-Mixer and related networks
-    """
+    """MLP as used in Vision Transformer, MLP-Mixer and related networks"""
+
     def __init__(
-            self,
-            in_features,
-            hidden_features=None,
-            out_features=None,
-            act_layer=nn.GELU,
-            norm_layer=None,
-            bias=True,
-            drop=0.,
-            use_conv=False,
+        self,
+        in_features,
+        hidden_features=None,
+        out_features=None,
+        act_layer=nn.GELU,
+        norm_layer=None,
+        bias=True,
+        drop=0.0,
+        use_conv=False,
     ):
         super().__init__()
         out_features = out_features or in_features
@@ -331,7 +363,9 @@ class Mlp(nn.Module):
         self.fc1 = linear_layer(in_features, hidden_features, bias=bias)
         self.act = act_layer()
         self.drop1 = nn.Dropout(drop)
-        self.norm = norm_layer(hidden_features) if norm_layer is not None else nn.Identity()
+        self.norm = (
+            norm_layer(hidden_features) if norm_layer is not None else nn.Identity()
+        )
         self.fc2 = linear_layer(hidden_features, out_features, bias=bias)
         self.drop2 = nn.Dropout(drop)
 
@@ -343,7 +377,7 @@ class Mlp(nn.Module):
         x = self.fc2(x)
         x = self.drop2(x)
         return x
-    
+
 
 class PretrainedViT(ViT):
     """
@@ -357,17 +391,19 @@ class PretrainedViT(ViT):
         bcfg = get_prev_config(bb_dir)
 
         # load backbone state
-        model_state = torch.load(os.path.join(bb_dir, 'model.pt'))["model"]
+        model_state = torch.load(os.path.join(bb_dir, "model.pt"))["model"]
         net_state = {
-            k.replace('net.', ''): v for k,v in model_state.items() if k.startswith('net.')
+            k.replace("net.", ""): v
+            for k, v in model_state.items()
+            if k.startswith("net.")
         }
-        
+
         # initialize network and load weights
         super().__init__(bcfg.net)
         self.load_state_dict(net_state)
-        
+
         # delete the head module used in pretraining
-        if cfg.drop_head and hasattr(self, 'head'):
+        if cfg.drop_head and hasattr(self, "head"):
             del self.head
 
         # freeze weights and set to eval mode
@@ -375,21 +411,23 @@ class PretrainedViT(ViT):
             for p in self.parameters():
                 p.requires_grad = False
             self.eval()
-            
+
         # init new head or input adaption if needed
         if cfg.add_head:
             self.head = instantiate(cfg.head)
         if cfg.adapt_res:
             self.init_adaptor(cfg.adaptor)
         if cfg.use_input_conv:
-            self.init_input_conv(cfg.input_conv)            
+            self.init_input_conv(cfg.input_conv)
         if cfg.interp_pos_encoding:
-            self.bb.init_pos_grid(cfg.data_shape)              
+            self.bb.init_pos_grid(cfg.data_shape)
 
 
 def check_shapes(cfg):
     for i, (s, p) in enumerate(zip(cfg.in_shape[1:], cfg.patch_shape)):
-        assert not s % p, \
-            f"Input size ({s}) should be divisible by patch size ({p}) in axis {i}."
-    assert not cfg.hidden_dim % 6, \
-        f"Hidden dim should be divisible by 6 (for fourier position embeddings)"
+        assert (
+            not s % p
+        ), f"Input size ({s}) should be divisible by patch size ({p}) in axis {i}."
+    assert (
+        not cfg.hidden_dim % 6
+    ), f"Hidden dim should be divisible by 6 (for fourier position embeddings)"

@@ -4,7 +4,7 @@ import sys
 import torch
 from abc import abstractmethod
 from hydra.utils import instantiate
-from torch.utils.data import DataLoader, Subset, default_collate, random_split
+from torch.utils.data import DataLoader, default_collate, random_split
 
 from src.utils import augmentations
 from src.utils.datasets import SummarizedLCDataset

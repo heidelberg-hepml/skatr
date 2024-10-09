@@ -9,10 +9,11 @@ from omegaconf import DictConfig
 from src.utils.cluster import submit
 from src.utils.config import update_config_from_prev, check_cfg
 
-log = logging.getLogger('SKATR')
+log = logging.getLogger("SKATR")
 
-@hydra.main(config_path='config', config_name='rerun', version_base=None)
-def main(cfg:DictConfig):
+
+@hydra.main(config_path="config", config_name="rerun", version_base=None)
+def main(cfg: DictConfig):
 
     # read hydra config
     hcfg = HydraConfig.get()
@@ -33,10 +34,11 @@ def main(cfg:DictConfig):
         return
 
     # select and run experiment
-    experiments = importlib.import_module('src.experiments')
+    experiments = importlib.import_module("src.experiments")
     exp_cls = getattr(experiments, cfg.experiment)
     experiment = exp_cls(cfg, exp_dir)
     experiment.run()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

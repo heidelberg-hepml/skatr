@@ -5,6 +5,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+
 class AttentiveHead(nn.Module):
 
     def __init__(self, cfg):
@@ -17,7 +18,7 @@ class AttentiveHead(nn.Module):
             init_std=cfg.init_std,
             qkv_bias=cfg.qkv_bias,
             complete_block=cfg.complete_block,
-            use_proj=cfg.use_proj
+            use_proj=cfg.use_proj,
         )
         if cfg.use_act:
             self.act = getattr(F, cfg.act)
@@ -26,21 +27,22 @@ class AttentiveHead(nn.Module):
 
     def forward(self, x):
         x = self.pooler(x).squeeze(1)
-        if hasattr(self, 'act'):
+        if hasattr(self, "act"):
             x = self.act(x)
-        if hasattr(self, 'linear'):       
+        if hasattr(self, "linear"):
             x = self.linear(x)
         return x
-    
+
 
 class AttentivePooler(nn.Module):
-    """ Attentive Pooler """
+    """Attentive Pooler"""
+
     def __init__(
         self,
         embed_dim=144,
         num_heads=6,
         mlp_ratio=4.0,
-        norm_layer='LayerNorm',
+        norm_layer="LayerNorm",
         init_std=0.02,
         qkv_bias=True,
         complete_block=True,
@@ -56,13 +58,12 @@ class AttentivePooler(nn.Module):
                 num_heads=num_heads,
                 mlp_ratio=mlp_ratio,
                 qkv_bias=qkv_bias,
-                norm_layer=norm_layer)
+                norm_layer=norm_layer,
+            )
         else:
             self.cross_attention_block = CrossAttention(
-                dim=embed_dim,
-                num_heads=num_heads,
-                qkv_bias=qkv_bias,
-                use_proj=use_proj)
+                dim=embed_dim, num_heads=num_heads, qkv_bias=qkv_bias, use_proj=use_proj
+            )
 
         self.init_std = init_std
         nn.init.trunc_normal_(self.query_token, std=self.init_std)
@@ -97,33 +98,34 @@ class AttentivePooler(nn.Module):
         q = self.cross_attention_block(q, x)
         return q
 
-    
+
 class CrossAttention(nn.Module):
-    
-    def __init__(
-        self,
-        dim,
-        num_heads=6,
-        qkv_bias=False,
-        use_sdpa=True,
-        use_proj=True
-    ):
+
+    def __init__(self, dim, num_heads=6, qkv_bias=False, use_sdpa=True, use_proj=True):
         super().__init__()
         self.num_heads = num_heads
         head_dim = dim // num_heads
-        self.scale = head_dim ** -0.5
+        self.scale = head_dim**-0.5
         self.q = nn.Linear(dim, dim, bias=qkv_bias)
-        self.kv = nn.Linear(dim, int(dim*2), bias=qkv_bias)
+        self.kv = nn.Linear(dim, int(dim * 2), bias=qkv_bias)
         self.use_sdpa = use_sdpa
         if use_proj:
             self.proj = nn.Linear(dim, dim)
 
     def forward(self, q, x):
         B, n, C = q.shape
-        q = self.q(q).reshape(B, n, self.num_heads, C // self.num_heads).permute(0, 2, 1, 3)
+        q = (
+            self.q(q)
+            .reshape(B, n, self.num_heads, C // self.num_heads)
+            .permute(0, 2, 1, 3)
+        )
 
         B, N, C = x.shape
-        kv = self.kv(x).reshape(B, N, 2, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
+        kv = (
+            self.kv(x)
+            .reshape(B, N, 2, self.num_heads, C // self.num_heads)
+            .permute(2, 0, 3, 1, 4)
+        )
         k, v = kv[0], kv[1]  # (batch_size, num_heads, seq_len, feature_dim_per_head)
 
         if self.use_sdpa:
@@ -132,31 +134,33 @@ class CrossAttention(nn.Module):
         else:
             xattn = (q @ k.transpose(-2, -1)) * self.scale
             xattn = xattn.softmax(dim=-1)  # (batch_size, num_heads, query_len, seq_len)
-            q = (xattn @ v)
+            q = xattn @ v
 
         q = q.transpose(1, 2).reshape(B, n, C)
-        if hasattr(self, 'proj'):
+        if hasattr(self, "proj"):
             q = self.proj(q)
 
         return q
-    
-    
+
+
 class CrossAttentionBlock(nn.Module):
     def __init__(
         self,
         dim,
         num_heads,
-        mlp_ratio=4.,
+        mlp_ratio=4.0,
         qkv_bias=False,
         act_layer=nn.GELU,
-        norm_layer='LayerNorm'
+        norm_layer="LayerNorm",
     ):
         super().__init__()
         self.norm1 = getattr(nn, norm_layer)(dim)
         self.xattn = CrossAttention(dim, num_heads=num_heads, qkv_bias=qkv_bias)
         self.norm2 = getattr(nn, norm_layer)(dim)
         mlp_hidden_dim = int(dim * mlp_ratio)
-        self.mlp = MLP(in_features=dim, hidden_features=mlp_hidden_dim, act_layer=act_layer)
+        self.mlp = MLP(
+            in_features=dim, hidden_features=mlp_hidden_dim, act_layer=act_layer
+        )
 
     def forward(self, q, x):
         y = self.xattn(q, self.norm1(x))
@@ -172,7 +176,7 @@ class MLP(nn.Module):
         hidden_features=None,
         out_features=None,
         act_layer=nn.GELU,
-        drop=0.
+        drop=0.0,
     ):
         super().__init__()
         out_features = out_features or in_features
