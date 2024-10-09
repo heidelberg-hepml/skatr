@@ -8,7 +8,7 @@ ema_momentum: 0.9997
 momentum_schedule: False
 sim: l1
 augment: False
-init_tgt_as_ctx: False
+init_tgt_as_ctx: True
 
 net: # encoders
   use_mask_token: False
@@ -41,7 +41,7 @@ training:
     kwargs: {}
 
 masking:
-  num_targets: 2
+  num_targets: 4
   
 defaults:
   - default

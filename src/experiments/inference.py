@@ -10,7 +10,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 from torch.utils.data import DataLoader
 
 from src.experiments.base_experiment import BaseExperiment
-from src.models import ConditionalFlowMatcher, INN
+from src.models import ConditionalFlowMatcher, INN, NPE, CalibratedNPE
 from src.utils import datasets
 from src.utils.plotting import PARAM_NAMES
 
@@ -24,10 +24,15 @@ class InferenceExperiment(BaseExperiment):
             return datasets.LCDataset(self.cfg.data, directory, self.device, preprocessing=prep)
 
     def get_model(self):
+        # TODO: Use try except and module attribute
         if self.cfg.generative_model == 'CFM':
             return ConditionalFlowMatcher(self.cfg)
         elif self.cfg.generative_model == 'INN':
             return INN(self.cfg)
+        elif self.cfg.generative_model == 'NPE':
+            return NPE(self.cfg)
+        elif self.cfg.generative_model == 'CalibratedNPE':
+            return CalibratedNPE(self.cfg)
     
     def plot(self):
         """Adapted from https://github.com/heidelberg-hepml/21cm-cINN/blob/main/Plotting.py"""
@@ -144,9 +149,12 @@ class InferenceExperiment(BaseExperiment):
             
             # move batch to gpu
             lc_batch = lc_batch.to(self.device, self.dtype_train)
-            
+
+            # summarize
+            lc_batch = self.model.summarize(lc_batch)
+
             # evaluate true param likelihoods
-            param_logprobs.append(self.model.log_prob(param_batch, lc_batch).cpu())
+            param_logprobs.append(self.model.inn.log_prob(param_batch, lc_batch).cpu())
 
             # loop over test points
             for i in range(len(lc_batch)):
@@ -155,11 +163,11 @@ class InferenceExperiment(BaseExperiment):
                 # select corresponding lightcone
                 lc = lc_batch[i].unsqueeze(0)
                 lc = lc.repeat(self.cfg.sample_batch_size, *[1]*(lc.ndim-1))
-
+                
                 # sample posterior in batches
                 sample_list, logprob_list = [], []
                 for _ in range(self.cfg.num_posterior_samples//self.cfg.sample_batch_size):
-                    sample, logprob = self.model.sample_batch(lc)
+                    sample, logprob = self.model.inn.sample_batch(lc)
                     sample_list.append(sample.detach().cpu())
                     logprob_list.append(logprob.detach().cpu())
                 

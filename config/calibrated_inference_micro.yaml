@@ -1,27 +1,21 @@
-run_name: inference_micro_${summary_net.arch}
+run_name: calibrated_inference_micro_${summary_net.arch}
 experiment: InferenceExperiment
 
-dim: 6
 summary_dim: 144
 target_indices: [0,1,2,3,4,5]
 
-num_test_points: 250
+num_test_points: 750
 num_posterior_samples: 5000
-sample_batch_size: 500
+sample_batch_size: 750
 
-generative_model: INN
-inn:
-  num_blocks: 6
-  layers_per_block: 2
-  internal_size: 128
-  spline_bound: 10
-  num_bins: 10
-  permute_soft: True
-  latent_space: gaussian
-  dropout: 0.
+generative_model: CalibratedNPE
 
-# summary_net:
-#   out_channels: ${summary_dim}
+calibration_num_samples: 32
+calibration_weight: 10.
+conservative: True
+
+net:
+  cond_dim: ${summary_dim}
 
 use_extra_summary_mlp: False
 extra_mlp:
@@ -39,7 +33,7 @@ attn_pool:
   out_channels: ${summary_dim}
 
 data:
-  dir: /scratch/ore/data/x5
+  dir: /remote/gpu02/ore/data/x5
   file_by_file: False
 
 training:
@@ -57,7 +51,7 @@ training:
 defaults:
   - default
   - preprocessing: xandy
-  - net: mlp
+  - net: inn
   - net@summary_net: vit_micro
   - net@attn_pool: attn_head
   - _self_
