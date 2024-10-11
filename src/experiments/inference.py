@@ -36,6 +36,8 @@ class InferenceExperiment(BaseExperiment):
             self.log.error(f"Unknown model class {self.cfg.generative_model}.")
             raise e
 
+        return  model_cls(self.cfg)
+    
     def plot(self):
         """Adapted from https://github.com/heidelberg-hepml/21cm-cINN/blob/main/Plotting.py"""
         # load data
