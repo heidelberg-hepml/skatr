@@ -26,16 +26,9 @@ class PretrainingExperiment(BaseExperiment):
         model_cls = getattr(models, self.cfg.model)
         return model_cls(self.cfg)
 
-    def plot(self):
-        raise NotImplementedError
-
     @torch.inference_mode()
     def evaluate(self, dataloaders):
-        """Use the pretrained summary to compress the chosen dataset"""
-
-        # free memory from current dataset
-        # load specific dataset as LabelledDataset
-        # iterate in batches and compress with summary
-        # stack results over batches (and data splits?)
-        # save with labels in hdf5 format
         raise NotImplementedError
+    
+    def plot(self):
+        raise NotImplementedError    

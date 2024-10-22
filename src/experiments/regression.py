@@ -27,6 +27,61 @@ class RegressionExperiment(BaseExperiment):
     def get_model(self):
         return (GaussianRegressor if self.cfg.gaussian else Regressor)(self.cfg)
 
+
+    @torch.inference_mode()
+    def evaluate(self, dataloaders):
+        """
+        Evaluates the regressor on lightcones in the test dataset.
+        Predictions are saved alongside truth labels
+        """
+
+        # disable batchnorm updates, dropout etc.
+        self.model.eval()
+
+        # get truth targets and predictions across the test set
+        labels, preds, stds = [], [], []
+        for x, y in dataloaders["test"]:
+
+            # predict
+            x = x.to(self.device, self.dtype_train)
+
+            if self.cfg.gaussian:
+                pred, std = self.model.predict(x)
+                pred = pred.detach().cpu()
+                std = std.detach().cpu()
+            else:
+                pred = self.model.predict(x).detach().cpu()
+
+            # postprocess output
+            for transform in reversed(self.preprocessing["y"]):
+                pred = transform.reverse(pred)
+                y = transform.reverse(y)
+
+            # append prediction
+            preds.append(pred.numpy())
+            labels.append(y.cpu().numpy())
+            if self.cfg.gaussian:
+                stds.append(std.numpy())
+
+        # stack results
+        labels = np.vstack(labels)
+        preds = np.vstack(preds)
+        if self.cfg.gaussian:
+            stds = np.vstack(stds)
+
+        # save results
+        savearrs = [labels, preds]
+        if self.cfg.gaussian:
+            savearrs.append(stds)
+
+            for a in savearrs:
+                print(a.shape)
+
+        savepath = os.path.join(self.exp_dir, "label_pred_pairs.npy")
+        self.log.info(f"Saving label/prediction pairs to {savepath}")
+        np.save(savepath, np.stack(savearrs, axis=-1))
+
+
     def plot(self):
 
         # pyplot config
@@ -138,56 +193,3 @@ class RegressionExperiment(BaseExperiment):
                 pdf.savefig(fig, bbox_inches="tight")
 
         self.log.info(f"Saved plots to {savepath}")
-
-    @torch.inference_mode()
-    def evaluate(self, dataloaders):
-        """
-        Evaluates the regressor on lightcones in the test dataset.
-        Predictions are saved alongside truth labels
-        """
-
-        # disable batchnorm updates, dropout etc.
-        self.model.eval()
-
-        # get truth targets and predictions across the test set
-        labels, preds, stds = [], [], []
-        for x, y in dataloaders["test"]:
-
-            # predict
-            x = x.to(self.device, self.dtype_train)
-
-            if self.cfg.gaussian:
-                pred, std = self.model.predict(x)
-                pred = pred.detach().cpu()
-                std = std.detach().cpu()
-            else:
-                pred = self.model.predict(x).detach().cpu()
-
-            # postprocess output
-            for transform in reversed(self.preprocessing["y"]):
-                pred = transform.reverse(pred)
-                y = transform.reverse(y)
-
-            # append prediction
-            preds.append(pred.numpy())
-            labels.append(y.cpu().numpy())
-            if self.cfg.gaussian:
-                stds.append(std.numpy())
-
-        # stack results
-        labels = np.vstack(labels)
-        preds = np.vstack(preds)
-        if self.cfg.gaussian:
-            stds = np.vstack(stds)
-
-        # save results
-        savearrs = [labels, preds]
-        if self.cfg.gaussian:
-            savearrs.append(stds)
-
-            for a in savearrs:
-                print(a.shape)
-
-        savepath = os.path.join(self.exp_dir, "label_pred_pairs.npy")
-        self.log.info(f"Saving label/prediction pairs to {savepath}")
-        np.save(savepath, np.stack(savearrs, axis=-1))

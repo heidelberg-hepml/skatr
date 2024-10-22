@@ -27,6 +27,7 @@ predictor:
 
 data:
   dir: /scratch/nordmann/data_new/x5
+  use_test_dir: True
   file_by_file: False
 
 training:

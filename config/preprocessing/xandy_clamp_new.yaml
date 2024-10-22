@@ -1,7 +1,11 @@
 x:
   - {_target_: src.utils.transforms.AddSingletonChannel}
   - {_target_: src.utils.transforms.Clamp}
+
 y:
-  - {_target_: src.utils.transforms.Center,
-     lo: [0.55, 0.20, 38., 100., 4.0, 10.6], hi: [10.0, 0.40, 42., 1500., 5.3, 250.],
-     indices: "${target_indices}"}
+  - {
+    _target_: src.utils.transforms.Center,
+    lo: [0.55, 0.20, 38., 100., 4.0, 10.6],
+    hi: [10.0, 0.40, 42., 1500., 5.3, 250.],
+    indices: "${target_indices}"
+  }

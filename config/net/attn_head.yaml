@@ -1,13 +1,13 @@
 arch: AttentiveHead
 embed_dim: 144
 num_heads: 6
-mlp_ratio: 4.0
+mlp_ratio: 2.0
 norm_layer: LayerNorm
 init_std: 0.02
 qkv_bias: True
 out_channels: 6
-complete_block: True
-use_proj: True
-use_linear: True
+complete_block: False
+use_proj: False
+use_linear: False
 use_act: False
 act: gelu

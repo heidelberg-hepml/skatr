@@ -1,3 +1,7 @@
 x:
   - {_target_: src.utils.transforms.AddSingletonChannel}
-  - {_target_: src.utils.transforms.Center, lo: -120., hi: -1.}
+  - {
+    _target_: src.utils.transforms.Center,
+    lo: -120.,
+    hi: -1.
+  }
