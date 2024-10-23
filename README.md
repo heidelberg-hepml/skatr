@@ -9,6 +9,8 @@ conda env create -f env.yaml
 ```
 
 ## Basic usage
+This project uses [Hydra](https://hydra.cc/docs/intro/) to configure experiments. The default settings are given in `config/default.yaml` and each can be overridden via the command line.
+
 The script `main.py` is used to run experiments. Each experiment consists of training/evaluating a model as well as creating plots. For example, to run a regression experiment, simply use:
 ```
 python main.py -cn regression data.dir=/path/to/light/cones
@@ -62,15 +64,11 @@ python3 main.py -cn <prev_config_name> prev_exp_dir=/path/to/prev/exp train=Fals
 ```
 The specific configuration will be loaded from the previous experiment. Command line overrides are also applied.
 
-## Further usage
-This project uses [Hydra](https://hydra.cc/docs/intro/) to configure experiments. The default settings are given in `config/default.yaml` and each can be overridden via the command line. For example, to use a different learning rate and to load the entire dataset into memory:
-```
-python main.py ... training.lr=1e-4 data.file_by_file=False
-```
-Using the same syntax, one can also submit an experiment to run on a cluster, possibly with specific resources
-```
-python main.py ... submit=True
-```
-```
-python main.py ... submit=True cluster.queue=<name_of_queue> cluster.mem=12gb
-```
+## Further settings
+The following is a description of parameters in `config/default.yaml` that may not be self explanatory or can affect performance.
+| Parameter name | Description |
+| :------- | :------- |
+| `data.file_by_file` | Whether to save memory by reading each light cone from disk when forming a batch. |
+|  `data.summarize` | Whether to summarize light cones upfront, to avoid repeated calls of the summary network. |
+| `submit` | Whether or not to submit the experiment as a job on a cluster. Submission configuration is controlled through the `cluster` parameter group. |
+| training | |
