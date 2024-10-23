@@ -23,7 +23,7 @@ python3 main.py -cn regression data.dir=/path/to/light/cones net=cnn
 The following is a description of currently-implemented experiments:
 | Experiment name | Description | Compatible networks |
 | :-------- | :------- | :------- |
-| `pretraining` | Trains a network in a self-supervised manner in order to learn informative lightcone summaries. | `vit` |
+| `jepa` | Trains a network in a self-supervised manner in order to learn informative lightcone summaries. | `vit` |
 | `regression` | Trains a network to predict cosmological parameters given a lightcone. The model performance is measured in terms of the mean relative absolute error. Produces parameter recovery plots. | `cnn`, `vit` |
 | `inference` | Trains a generative model for the posterior distribution for cosmological parameters conditioned on a given lightcone (Neural Posterior Estimation). Lightcones are summarised by a network before being passed to the generative model. Produces triangle posterior plots for a selection of test lightcones and a coverage calibration plot.| `mlp` |
 
