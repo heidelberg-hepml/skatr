@@ -71,4 +71,3 @@ The following is a description of parameters in `config/default.yaml` that may n
 | `data.file_by_file` | Whether to save memory by reading each light cone from disk when forming a batch. |
 |  `data.summarize` | Whether to summarize light cones upfront, to avoid repeated calls of the summary network. |
 | `submit` | Whether or not to submit the experiment as a job on a cluster. Submission configuration is controlled through the `cluster` parameter group. |
-| training | |
