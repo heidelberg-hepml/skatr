@@ -1,4 +1,4 @@
-run_name: fine_regression_${net.arch}
+run_name: summarized_regression_${net.arch}
 experiment: RegressionExperiment
 
 summary_net:

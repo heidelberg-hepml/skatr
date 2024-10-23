@@ -20,7 +20,7 @@ net:
   out_act: sigmoid
   
 defaults:
-  - regression_micro
+  - summarized_regression
   - override net: mlp
   - net@summary_net: pretrained_vit
   - _self_

@@ -20,7 +20,6 @@ data:
   splits:
     train: 0.75
     test: 0.15
-  sequential_splits: False
   dtype: float32
   on_gpu: False
   file_by_file: True
