@@ -15,9 +15,9 @@ python3 main.py -cn regression data.dir=/path/to/light/cones
 ```
 In the above, `-cn` is short for `--config_name`.
 
-Experiment settings can be adjusted from the command line. For example, to use a different neural network use:
+Experiment settings can be adjusted from the command line. For example, to select a different neural network use:
 ```
-python3 main.py -cn regression net=cnn
+python3 main.py -cn regression data.dir=/path/to/light/cones net=cnn
 ```
 
 The following is a description of currently-implemented experiments:
