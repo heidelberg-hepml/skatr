@@ -24,8 +24,8 @@ The following is a description of currently-implemented experiments:
 | Experiment name | Description | Compatible networks |
 | :-------- | :------- | :------- |
 | `jepa` | Trains a network in a self-supervised manner in order to learn informative lightcone summaries. | `vit` |
-| `regression` | Trains a network to predict simulation parameters given a light cone. The model performance is measured in terms of the mean relative absolute error. Produces parameter recovery plots. | `cnn`, `vit` |
-| `inference` | Trains a generative model for the posterior distribution for cosmological parameters conditioned on a given lightcone (Neural Posterior Estimation). Lightcones are summarised by a network before being passed to the generative model. Produces triangle posterior plots for a selection of test lightcones and a coverage calibration plot.| `inn` |
+| `regression` | Trains a network to predict simulation parameters given a light cone. The model performance is measured in terms of a normalized mean relative absolute error. Produces parameter recovery plots. | `cnn`, `vit` |
+| `inference` | Trains a normalizing flow to fit the posterior distribution for simulation parameters conditioned on a given light cone (Neural Posterior Estimation). Light cones are summarized by a network before being passed to the generative model. Produces triangle posterior plots for a selection of test light cones and a coverage calibration plot. | `inn` |
 
 ## Continuing an experiment
 One often needs to re-run a previous experiment. This can be achieved simply from the command line. Common examples include:
