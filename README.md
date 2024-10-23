@@ -34,11 +34,18 @@ python main.py -cn inference ... net@summary_net=cnn
 ```
 In this case, a CNN will be trained jointly with the normalizing flow.
 
-To initialise the summary from a pretrained `vit`, use:
+To initialise the summary network from a pretrained `vit`, use:
 ```
-python main.py -cn inference ... net@summary_net=pretrained_vit summary_net.backbone_dir=/path/to/pretraing/exp
+python main.py ... net@summary_net=pretrained_vit summary_net.backbone_dir=/path/to/pretraing/exp
 ```
 By default, the weights will be loaded then frozen.
+
+When using a summary network, there is also the option to create a summarized dataset:
+```
+python main.py ... data.summarize=True
+```
+However, it only makes sense to do this if the summary network is pretrained.
+
 
 ## Continuing an experiment
 One often needs to re-run a previous experiment. This can be achieved simply from the command line. Common examples include:
