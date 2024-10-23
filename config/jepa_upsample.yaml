@@ -14,7 +14,6 @@ net: # encoders
   use_mask_token: False
   use_head: False
   hidden_dim: 144
-  learn_pos_encoding: False
   depth: 4
 
 predictor:
@@ -26,11 +25,6 @@ predictor:
   in_shape: ${net.in_shape}
   patch_shape: ${net.patch_shape}
 
-data:
-  dir: /scratch/nordmann/data_new/x5
-  use_test_dir: True
-  file_by_file: False
-
 training:
   epochs: 1000
   lr: 0.001
@@ -38,7 +32,6 @@ training:
   test_batch_size: ${training.batch_size}
   optimizer:
     name: AdamW
-    kwargs: {}
 
 masking:
   num_targets: 4

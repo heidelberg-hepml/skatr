@@ -27,8 +27,6 @@ class Model(nn.Module):
             )
 
         # initialize network
-        # TODO: depracate cfg.replace_backbone
-        # TODO: Automatically set MLP input dim to backbone embedding dim
         net_cls = getattr(networks, cfg.net.arch)
         self.net = net_cls(cfg.net)
 

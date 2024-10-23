@@ -13,9 +13,7 @@ class NPE(Model):
     def __init__(self, cfg: DictConfig):
         super().__init__(cfg)
         self.cfg = cfg
-        sum_net_cls = getattr(networks, cfg.summary_net.arch)
-        self.summary_net = sum_net_cls(cfg.summary_net)
-
+        
         if cfg.use_extra_summary_mlp:
             self.extra_mlp = networks.MLP(cfg.extra_mlp)
         if cfg.use_attn_pool:
@@ -79,7 +77,8 @@ class NPE(Model):
 
 
 class CalibratedNPE(NPE):
-
+    """See https://arxiv.org/abs/2310.13402."""
+    
     def __init__(self, cfg: DictConfig):
 
         self.calibration_num_samples = cfg.calibration_num_samples

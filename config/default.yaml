@@ -4,7 +4,7 @@ train: True
 evaluate: True
 plot: True
 
-proj_dir: /remote/gpu02/ore/skatr
+proj_dir: .
 use_gpu: True
 num_cpus: 0
 device: 0
@@ -13,8 +13,10 @@ dry_run: False
 
 prev_exp_dir: null
 
+summary_net: null
+
 data:
-  dir: /scratch2/heneka/21cmlightcones/pure_simulations/
+  dir: ???
   splits:
     train: 0.75
     test: 0.15
@@ -48,11 +50,6 @@ training:
   warm_start: null
   warm_start_epoch: null
   use_tensorboard: True
-  
-summary_net: null
-# backbone: null
-# frozen_backbone: True
-# replace_backbone: False
 
 defaults:
   - cluster: pbs

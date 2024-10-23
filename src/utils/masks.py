@@ -20,23 +20,6 @@ def patch_mask(num_patches, cfg, batch_size, device):
     return mask_idcs
 
 
-# def collated_block_mask(num_patches, cfg, batch_size, device):
-#     # sample block size (once per batch)
-#     block_sizes = [sample_block_size(num_patches, cfg) for i in range(cfg.num_targets)]
-
-#     for _ in range(batch_size):
-#         masks = []
-#         for i, block_size in enumerate(block_sizes):
-
-#             (mask,) = block_mask(num_patches, cfg, block_size, device)
-#             for _ in range(num_blocks - 1):
-#                 (mask,) = block_mask(num_patches, cfg, block_size, device)
-#                 torch.cat([mask, mask_i], dim=0)
-#             masks.append(mask)
-#         batch.append(masks)
-#     return torch.utils.data.default_collate(batch)
-
-
 def JEPA_mask(num_patches, cfg, batch_size, device):
     """
     :cfg.num_targets: Number of targets to predict

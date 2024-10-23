@@ -1,20 +1,18 @@
 run_name: fine_regression_${net.arch}
 experiment: RegressionExperiment
 
-# backbone: runs/pretraining_micro/huge_775
-# latent_dim: 360
-backbone: runs/pretraining_micro/2024-07-23_15-01-12
-latent_dim: 144
-
-num_cpus: 4
-
-data:
-  summarize: True
-  summary_batch_size: 5
+summary_net:
+  backbone_dir: ???
+latent_dim: 360
 
 training:
   lr: 5.e-4
-  epochs: 500
+  epochs: 1000
+  patience: 100
+
+data:
+  summarize: True
+  file_by_file: True
 
 net:
   units:
@@ -26,4 +24,5 @@ net:
 defaults:
   - regression
   - override net: mlp
+  - net@summary_net: pretrained_vit
   - _self_

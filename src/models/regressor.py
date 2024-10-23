@@ -24,7 +24,6 @@ class Regressor(Model):
         if hasattr(self, "summary_net") and not self.cfg.data.summarize:
 
             x = self.summary_net(x)
-            # if not hasattr(self.bb, 'head') and self.net.cfg.arch == 'MLP': # weird...
             if (
                 not hasattr(self.summary_net, "head") and self.cfg.net.arch == "MLP"
             ):  # TODO: Clean

@@ -66,8 +66,6 @@ class ViT(nn.Module):
         # optionally initialize a task head, input pooling, or mask token
         if cfg.use_head:
             self.init_head(cfg.head)
-        if cfg.adapt_res:
-            self.init_adaptor(cfg.adaptor)
         if cfg.use_input_conv:
             self.init_input_conv(cfg.input_conv)
         if self.cfg.use_mask_token:
@@ -75,30 +73,6 @@ class ViT(nn.Module):
 
     def init_head(self, cfg):
         self.head = instantiate(cfg)
-
-    def init_adaptor(self, cfg):
-
-        # downsampling conv
-        pool = nn.Conv3d(1, cfg.channels, cfg.downsample_factor, cfg.downsample_factor)
-        if cfg.init_pool_as_mean:
-            nn.init.constant_(pool.weight, 1 / cfg.downsample_factor**3)
-            nn.init.constant_(pool.bias, 0.0)
-
-        use_relu = True
-        if cfg.replace_embedding:
-            self.embedding = nn.Linear(
-                cfg.channels * self.patch_dim, self.cfg.hidden_dim
-            )
-        elif cfg.extra_proj:
-            self.extra_proj = nn.Linear(cfg.channels * self.patch_dim, self.patch_dim)
-        else:
-            use_relu = False
-
-        self.adaptor = nn.Sequential(pool)
-        if use_relu:
-            self.adaptor.append(nn.ReLU())
-        if cfg.batchnorm:
-            self.adaptor.append(nn.BatchNorm3d(cfg.channels))
 
     def init_input_conv(self, cfg):
 
@@ -148,9 +122,6 @@ class ViT(nn.Module):
         :param x   : tensor of spatial inputs with shape (batch_size, channels, *axis_sizes)
         :param mask: a tensor of patch indices that should be masked out of `x`.
         """
-
-        if hasattr(self, "adaptor"):
-            x = self.adaptor(x)
 
         if hasattr(self, "input_conv"):
             x = self.input_conv(x)
@@ -415,12 +386,8 @@ class PretrainedViT(ViT):
         # init new head or input adaption if needed
         if cfg.add_head:
             self.head = instantiate(cfg.head)
-        if cfg.adapt_res:
-            self.init_adaptor(cfg.adaptor)
         if cfg.use_input_conv:
             self.init_input_conv(cfg.input_conv)
-        if cfg.interp_pos_encoding:
-            self.bb.init_pos_grid(cfg.data_shape)
 
 
 def check_shapes(cfg):

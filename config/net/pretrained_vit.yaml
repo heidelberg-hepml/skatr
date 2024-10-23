@@ -1,5 +1,5 @@
 arch: PretrainedViT
-backbone_dir: runs/pretraining_micro/huge_775
+backbone_dir: ???
 frozen: True
 drop_head: True
 interp_pos_encoding: False
@@ -15,13 +15,6 @@ head:
     act: relu
     out_act: sigmoid
     drop: 0.
-
-adapt_res: False
-adaptor:
-  channels: 4
-  downsample_factor: 5
-  extra_proj: True
-  replace_embedding: False
 
 use_input_conv: False
 input_conv:

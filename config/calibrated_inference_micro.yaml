@@ -1,57 +1,12 @@
 run_name: calibrated_inference_micro_${summary_net.arch}
 experiment: InferenceExperiment
 
-summary_dim: 144
-target_indices: [0,1,2,3,4,5]
-
-num_test_points: 750
-num_posterior_samples: 5000
-sample_batch_size: 750
-
 generative_model: CalibratedNPE
 
 calibration_num_samples: 32
-calibration_weight: 10.
+calibration_weight: 1.
 conservative: True
 
-net:
-  cond_dim: ${summary_dim}
-
-use_extra_summary_mlp: False
-extra_mlp:
-  units:
-    - ${summary_dim}
-    - ${summary_dim}
-    - ${summary_dim}
-  act: relu
-  out_act: null
-  drop: 0.
-
-use_attn_pool: False
-attn_pool:
-  embed_dim: ${summary_dim}
-  out_channels: ${summary_dim}
-
-data:
-  dir: /remote/gpu02/ore/data/x5
-  file_by_file: False
-
-training:
-  epochs: 500
-  lr: 0.0001
-  batch_size: 64
-  test_batch_size: ${num_test_points}
-  optimizer:
-    name: AdamW
-    kwargs: {}
-  # scheduler:
-  #   name: OneCycleLR
-  #   kwargs: {max_lr: 1.e-3}
-
 defaults:
-  - default
-  - preprocessing: xandy
-  - net: inn
-  - net@summary_net: vit_micro
-  - net@attn_pool: attn_head
+  - inference_micro
   - _self_

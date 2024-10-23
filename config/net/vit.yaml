@@ -27,11 +27,4 @@ head:
     out_act: ${net.out_act}
     drop: ${net.mlp_drop}
 
-adapt_res: False
-adaptor:
-  channels: 4
-  downsample_factor: 5
-  extra_proj: True
-  replace_embedding: False
-
 use_input_conv: False 

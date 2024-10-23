@@ -1,11 +1,16 @@
 run_name: fine_regression_micro_${net.arch}
 experiment: RegressionExperiment
 
-latent_dim: 144
+summary_net:
+  backbone_dir: ???
+latent_dim: 360
 
 training:
-  lr: 1.e-3
-  epochs: 500
+  lr: 5.e-4
+
+data:
+  summarize: True
+  file_by_file: True
 
 net:
   units:
@@ -17,4 +22,5 @@ net:
 defaults:
   - regression_micro
   - override net: mlp
+  - net@summary_net: pretrained_vit
   - _self_
