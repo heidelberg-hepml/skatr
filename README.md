@@ -25,6 +25,7 @@ The following is a description of currently-implemented experiments:
 | :-------- | :------- | :------- |
 | `jepa` | Trains a network in a self-supervised manner in order to learn informative lightcone summaries. | `vit` |
 | `regression` | Trains a network to predict simulation parameters given a light cone. The model performance is measured in terms of a normalized mean relative absolute error. Produces parameter recovery plots. | `cnn`, `vit` |
+| `summarized_regression` | Runs a regression experiment based on summarized light cones. | `mlp` + `pretrained_vit` |
 | `inference` | Trains a normalizing flow to fit the posterior distribution for simulation parameters conditioned on a given light cone (Neural Posterior Estimation). Light cones are summarized by a network before being passed to the generative model. Produces triangle posterior plots for a selection of test light cones and a coverage calibration plot. | `inn` |
 
 ## Specifying a summary network
