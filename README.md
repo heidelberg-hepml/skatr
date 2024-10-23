@@ -3,8 +3,10 @@ A general-purpose summary transformer for processing lightcones observed by the 
 
 ## Getting started
 - Clone the repository
-- Create a virtual (conda) environment and install packages listed in `requirements.txt`
-
+- Create the conda environment:
+```
+conda env create -f env.yaml
+```
 
 ## Basic usage
 The script `main.py` is used to run experiments. Each experiment consists of training/evaluating a model as well as creating plots. For example, to run a regression experiment, simply use:
