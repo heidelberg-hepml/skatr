@@ -11,7 +11,7 @@ conda env create -f env.yaml
 ## Basic usage
 The script `main.py` is used to run experiments. Each experiment consists of training/evaluating a model as well as creating plots. For example, to run a regression experiment, simply use:
 ```
-python3 main.py -cn regression
+python3 main.py -cn regression data.dir=/path/to/light/cones
 ```
 In the above, `-cn` is short for `--config_name`.
 
