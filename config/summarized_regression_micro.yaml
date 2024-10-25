@@ -21,6 +21,6 @@ net:
   
 defaults:
   - summarized_regression
+  - override net@summary_net: pretrained_vit
   - override net: mlp
-  - net@summary_net: pretrained_vit
   - _self_

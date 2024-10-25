@@ -11,5 +11,5 @@ data:
   
 defaults:
   - inference
-  - net@summary_net: vit_micro
+  - override net@summary_net: vit_micro
   - _self_
