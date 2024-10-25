@@ -11,7 +11,7 @@ conda env create -f env.yaml
 ```
 
 ## Basic usage
-This project uses [Hydra](https://hydra.cc/docs/intro/) to configure experiments. The default settings are given in `config/default.yaml` and each can be overridden via the command line.
+This project uses [Hydra](https://hydra.cc/docs/intro/) to configure experiments. The default settings are given in `config/default.yaml` and various other configurations are stored in `config`. Hydra allows each parameter to be overridden via the command line.
 
 The script `main.py` is used to run experiments. Each experiment consists of training/evaluating a model as well as creating plots. For example, to run a regression experiment, simply use:
 ```
