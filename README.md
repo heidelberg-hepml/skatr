@@ -1,7 +1,7 @@
 # skatr
 A general-purpose summary transformer for processing lightcones observed by the Square Kilometer Array (SKA).
 
-Read the arXiv paper: [2410.18899](https://arxiv.org/abs/2410.18899)
+Read the paper: [SciPost Phys. 18, 155 (2025)](https://scipost.org/SciPostPhys.18.5.155) / [arXiv:2410.18899](https://arxiv.org/abs/2410.18899)
 
 ## Getting started
 - Clone the repository
